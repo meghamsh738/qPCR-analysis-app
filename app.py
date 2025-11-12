@@ -351,8 +351,10 @@ def extract_standard_concentrations(
     df: pd.DataFrame,
 ) -> Tuple[Dict[str, float], Dict[str, Dict[str, float]], pd.DataFrame, List[str]]:
     """Collect concentration information for standard wells."""
+    standards_columns = ["Gene", "Label", "Concentration", "Source", "LabelOrder"]
+    empty_standards = pd.DataFrame(columns=standards_columns)
     if df.empty:
-        return {}, {}, pd.DataFrame(), []
+        return {}, {}, empty_standards, []
     conc_col = next((col for col in df.columns if col.lower() in {"concentration", "conc"}), None)
     if conc_col:
         df = df.copy()
@@ -363,7 +365,7 @@ def extract_standard_concentrations(
     records: List[Dict[str, object]] = []
     standards = df[df["Type_lower"] == "standard"]
     if standards.empty:
-        return global_map, per_gene_map, pd.DataFrame(), ["No standards detected in the wells table."]
+        return global_map, per_gene_map, empty_standards, ["No standards detected in the wells table."]
     default_per_gene: Dict[str, Dict[str, float]] = {}
     for gene, group in standards.groupby("Gene", sort=False):
         order_series = (
@@ -411,7 +413,7 @@ def extract_standard_concentrations(
                 "LabelOrder": label_order,
             }
         )
-    standards_sheet = pd.DataFrame(records)
+    standards_sheet = pd.DataFrame(records, columns=standards_columns)
     if not standards_sheet.empty:
         standards_sheet = standards_sheet.sort_values(["Gene", "LabelOrder"]).reset_index(drop=True)
     return global_map, per_gene_map, standards_sheet, warnings
