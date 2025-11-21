@@ -1,5 +1,5 @@
-streamlit>=1.30
-pandas>=1.5
-numpy>=1.23
+streamlit>=1.33
+pandas>=2.0
+numpy>=1.22
+openpyxl>=3.1
 matplotlib>=3.7
-xlsxwriter>=3.0

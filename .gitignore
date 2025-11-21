@@ -1,6 +1,15 @@
-.venv/
+# Python
 __pycache__/
-.pytest_cache/
-.mypy_cache/
-.DS_Store
 *.pyc
+.venv/
+.venv_codex/
+.venv_test/
+venv/
+
+# Node / front-end
+frontend/node_modules/
+frontend/dist/
+
+# Editors
+.idea/
+.DS_Store
