@@ -200,11 +200,18 @@ def replicate_stats(clean_df: pd.DataFrame):
     return agg
 
 def normalize_to_ref(q_df: pd.DataFrame, ref_gene: str):
-    mean_by = q_df.groupby(["Gene", "Label"], as_index=False)["Quantity"].agg(["mean","std","count"]).reset_index()
-    mean_by.columns = ["Gene","Label","Qty_mean","Qty_sd","n"]
-    ref = mean_by[mean_by["Gene"].str.lower() == ref_gene.lower()].rename(columns={"Qty_mean":"RefQty"})
-    ref = ref[["Label","RefQty"]]
-    merged = mean_by.merge(ref, on="Label", how="left")
+    if q_df.empty:
+        return pd.DataFrame(columns=["Gene","Label","Qty_mean","Qty_sd","n","RefQty","Norm_Qty"])
+    agg = (
+        q_df.groupby(["Gene", "Label"], dropna=False)["Quantity"]
+        .agg(Qty_mean="mean", Qty_sd="std", n="count")
+        .reset_index()
+    )
+    ref = (
+        agg[agg["Gene"].str.lower() == str(ref_gene).lower()][["Label","Qty_mean"]]
+        .rename(columns={"Qty_mean":"RefQty"})
+    )
+    merged = agg.merge(ref, on="Label", how="left")
     merged["Norm_Qty"] = merged["Qty_mean"] / merged["RefQty"]
     return merged
 
@@ -418,6 +425,8 @@ st.dataframe(quant_df.head(30))
 # ------------- normalize -------------
 st.subheader("6) Normalize to reference gene")
 norm_df = normalize_to_ref(quant_df, ref_gene=ref_gene)
+if norm_df["RefQty"].isna().all():
+    st.info(f"Reference gene '{ref_gene}' missing in standards/samples; add a ref gene to see normalized values.")
 st.dataframe(norm_df)
 
 # ------------- export -------------

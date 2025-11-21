@@ -31,6 +31,24 @@ The app prefills standards using a 4-fold serial dilution from the top concentra
 
 - The modern FastAPI/React scaffold has been removed; this project now runs solely as a Streamlit app (`app.py`).
 -,Sample data lives in `sample-data/qpcr_example.csv` if you want a quick smoke test (paste/upload).***
+,Sample data lives in `sample-data/qpcr_example.csv` if you want a quick smoke test (paste/upload).
+
+## Screenshots
+
+- Overview + cleaning + replicate table:
+
+![Overview](screenshots/overview.png)
+![Replicates](screenshots/replicates.png)
+
+- Standards map + curves:
+
+![Standards](screenshots/standards.png)
+![Curves](screenshots/curves.png)
+
+- Quantify, normalize, and export:
+
+![Quant+Norm](screenshots/quant_normalize.png)
+![Export](screenshots/export.png)
 
 ## Screenshots
 
