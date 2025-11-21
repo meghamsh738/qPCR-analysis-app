@@ -10,6 +10,12 @@ Streamlit dashboard for quickly reviewing qPCR plates end-to-end – from pasted
 - One-click Excel export (`qpcr_results.xlsx`) that bundles cleaned wells, replicate summaries, standard curve points & plots, quantities, and relative-expression tables.
 - Includes `mock_wells.csv` so you can try the workflow without real instrument output.
 
+## Screenshot
+
+Example run using the bundled `mock_wells.csv` (loaded via the sidebar button) and default options:
+
+![qPCR analysis dashboard screenshot](screenshots/example_run.png)
+
 ## Quick Start
 1. **Prerequisites:** Python 3.9+ and `pip`. Creating a virtual environment is recommended.
 2. **Install dependencies**
@@ -25,7 +31,7 @@ Streamlit dashboard for quickly reviewing qPCR plates end-to-end – from pasted
 4. Streamlit prints a local URL (typically http://localhost:8501). Open it in your browser.
 
 ## Using the Dashboard
-1. **Step 0 – Paste wells:** Copy the table from your qPCR software (or open `mock_wells.csv`) and paste it into the sidebar. Required columns are `Gene`, `Label`, and `Cq`; optional metadata (Plate, Well, Type, Replicate, Concentration, Amp Status) is auto-detected.
+1. **Step 0 – Paste wells:** Copy the table from your qPCR software and paste it into the sidebar text box. Required columns are `Gene`, `Label`, and `Cq`; optional metadata (Plate, Well, Type, Replicate, Concentration, Amp Status) is auto-detected. Or click **Load example wells (mock_wells.csv)** to fill in the bundled sample dataset instantly.
 2. **Step 1 – Selection:** Toggle which genes to analyse, choose the reference gene, and select calibrator labels for ΔΔCt.
 3. **Step 2 – Standard curve:** Standards with concentration data are fitted per gene; review slope/intercept/R²/efficiency and inspect the generated matplotlib plot.
 4. **Step 3 – Quantities:** Sample Cq values are converted into absolute quantities using the fitted curve for each gene.

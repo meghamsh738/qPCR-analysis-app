@@ -1,6 +1,7 @@
 import hashlib
 import io
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple, Set
 
 import matplotlib.pyplot as plt
@@ -13,6 +14,7 @@ NA_TOKENS = ["UNDETERMINED", "#DIV/0!", "NA", "NaN", "INF", "inf", "nan"]
 CANDIDATE_SEPARATORS = [",", "\t", ";", "|"]
 DEFAULT_REFERENCE_GENE = "gapdh"
 NEGATIVE_LABEL_TOKENS = {"rt-", "rna-", "blank", "ntc", "water", "pcr-", "no template", "negative"}
+EXAMPLE_WELLS_PATH = Path(__file__).parent / "mock_wells.csv"
 
 
 @dataclass
@@ -65,6 +67,17 @@ def read_pasted_dataframe(name: str, raw_text: str, required: bool = True) -> Op
         st.error(f"Could not parse {name} input: {exc}")
         return None
     return df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+
+
+def load_example_wells_text() -> Optional[str]:
+    """Return the bundled example wells CSV contents, if available."""
+    try:
+        return EXAMPLE_WELLS_PATH.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        st.error("Bundled example wells file is missing. Reinstall or restore 'mock_wells.csv'.")
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"Couldn't load bundled example wells: {exc}")
+    return None
 
 
 def rename_case_insensitive(df: pd.DataFrame, columns: Sequence[str]) -> pd.DataFrame:
@@ -744,12 +757,20 @@ def main() -> None:
         "standard curves, quantities, normalisation, and relative expression. All tables are synchronised to the gene selector."
     )
 
+    if "wells_text" not in st.session_state:
+        st.session_state["wells_text"] = ""
+
     with st.sidebar:
         st.header("Step 0 – Paste wells")
         st.write(
             "Copy the full wells table from your qPCR instrument (including standards) and paste it below. "
             "CSV, TSV, and Excel-style tables are detected automatically."
         )
+        if st.button("Load example wells (mock_wells.csv)"):
+            example = load_example_wells_text()
+            if example:
+                st.session_state["wells_text"] = example
+                st.success("Loaded bundled example wells.")
         wells_text = st.text_area("Wells table", height=240, key="wells_text")
         st.caption(
             "Required columns: Gene, Label, Cq. Optional columns such as Plate, Well, Type, Replicate, Concentration, "
