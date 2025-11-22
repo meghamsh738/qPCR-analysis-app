@@ -1,61 +1,62 @@
-# qPCR Analysis (Streamlit)
+# qPCR Analysis App
 
-Single-page Streamlit app for qPCR standard-curve analysis: clean wells, flag outliers, fit curves, quantify, normalize to a reference gene, and export results to Excel.
+Streamlit dashboard for quickly reviewing qPCR plates end-to-end – from pasted wells tables through replicate QC, standard curve fitting, absolute quantity estimation, ΔΔCt normalisation, and Excel export. The app is designed to work directly from the tables produced by most qPCR instruments, so you can validate a run without pre-processing in spreadsheets.
 
-## Quick start
+## Highlights
+- Paste CSV/TSV/Excel-style well tables or vendor exports; delimiter detection and case-insensitive column matching keep the input flexible.
+- Automatically reshapes vendor-specific columns, derives replicate numbers, and flags negative or control wells.
+- Per-gene tabs surface replicate statistics (mean Cq, SD, ΔCq), standard curve plots with slope/intercept/R²/efficiency, and concentration back-calculations.
+- Calibrator-aware normalisation plus relative expression via 2^-ΔΔCt with selectable reference genes and calibrator pools.
+- One-click Excel export (`qpcr_results.xlsx`) that bundles cleaned wells, replicate summaries, standard curve points & plots, quantities, and relative-expression tables.
+- Includes `mock_wells.csv` so you can try the workflow without real instrument output.
 
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
+## Screenshot
 
-The app prefills standards using a 4-fold serial dilution from the top concentration; tweak under “Auto-fill serial dilution” if your plate differs.
+Example run using the bundled `mock_wells.csv` (loaded via the sidebar button) and default options:
 
-## Data input
+![qPCR analysis dashboard screenshot](screenshots/example_run.png)
 
-- Upload CSV/TSV/Excel or paste a table. Required columns (case/spacing flexible): `Plate`, `Well`, `Gene`, `Type` (`Standard` or `Sample`), `Label`, `Replicate`, `Cq`.
-- If `Cq` is missing, the app auto-picks the most numeric-looking column as `Cq`.
-- Optional combined column like `SampleSexTreatmentAge` is split into `Sample/Label`, `Sex`, `Treatment`, `Age`.
-- Extra columns are preserved in the data editor and Excel export.
-
-## Features
-
-- Outlier flagging by ΔCq with manual keep/drop toggles.
-- Replicate stats by Gene/Type/Label.
-- Standards mapping (Label → Concentration) with serial dilution autofill (default 4-fold).
-- Standard-curve fitting (slope/intercept/R²/efficiency) with per-curve scatter + fit plots rendered inline.
-- Quantification and normalization to a reference gene.
-- Excel export with cleaned wells, replicate stats, standards map, curve points/fits, per-well quant, and per-sample normalized data.
-
-## Notes
-
-- The modern FastAPI/React scaffold has been removed; this project now runs solely as a Streamlit app (`app.py`).
--,Sample data lives in `sample-data/qpcr_example.csv` if you want a quick smoke test (paste/upload).***
-,Sample data lives in `sample-data/qpcr_example.csv` if you want a quick smoke test (paste/upload).
-
-## Screenshots
-
-- Overview + cleaning + replicate table:
+Additional views from the full workflow:
 
 ![Overview](screenshots/overview.png)
 ![Replicates](screenshots/replicates.png)
-
-- Standards map + curves:
-
 ![Standards](screenshots/standards.png)
 ![Curves](screenshots/curves.png)
-
-- Quantify, normalize, and export:
-
-![Quant+Norm](screenshots/quant_normalize.png)
+![Quant + Normalize](screenshots/quant_normalize.png)
 ![Export](screenshots/export.png)
 
-## Screenshots
+## Quick Start
+1. **Prerequisites:** Python 3.9+ and `pip`. Creating a virtual environment is recommended.
+2. **Install dependencies**
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate  # Windows: .venv\Scripts\activate
+   pip install -r requirements.txt
+   ```
+3. **Run the dashboard**
+   ```bash
+   streamlit run app.py
+   ```
+4. Streamlit prints a local URL (typically http://localhost:8501). Open it in your browser.
 
-- Overview / cleaning:
+## Using the Dashboard
+1. **Step 0 – Paste wells:** Copy the table from your qPCR software and paste it into the sidebar text box. Required columns are `Gene`, `Label`, and `Cq`; optional metadata (Plate, Well, Type, Replicate, Concentration, Amp Status) is auto-detected. Or click **Load example wells (mock_wells.csv)** to fill in the bundled sample dataset instantly.
+2. **Step 1 – Selection:** Toggle which genes to analyse, choose the reference gene, and select calibrator labels for ΔΔCt.
+3. **Step 2 – Standard curve:** Standards with concentration data are fitted per gene; review slope/intercept/R²/efficiency and inspect the generated matplotlib plot.
+4. **Step 3 – Quantities:** Sample Cq values are converted into absolute quantities using the fitted curve for each gene.
+5. **Step 4 – Normalisation:** Quantities are normalised to the reference gene, exposing fold changes across samples.
+6. **Step 5 – Relative expression:** 2^-ΔΔCt values are produced relative to the chosen calibrator pool, with warnings if prerequisites are missing.
+7. **Step 6 – Missing standards:** Quickly spot genes lacking enough standard dilutions to produce a trustworthy curve.
 
-![Overview](screenshots/overview.png)
+Use the download button at the bottom of the page to collect all derived tables (plus rendered standard-curve plots) into a single Excel workbook for record keeping.
 
-- Standards and curve fit:
+## Tips
+- Paste data exactly as exported; the app trims whitespace, harmonises case, and interprets common "NA"/"Undetermined" tokens automatically.
+- Keep at least two standard levels with known concentrations per gene to enable curve fitting.
+- When experimenting, load `mock_wells.csv`, copy its contents, and paste them into Step 0 to see the full workflow.
+- A small sample dataset is also in `sample-data/qpcr_example.csv` if you prefer to upload a file instead of pasting.
 
-![Standards](screenshots/standards.png)
+## Development Notes
+- The Streamlit script lives in `app.py`; update it and re-run `streamlit run app.py` to see changes.
+- Dependencies are listed in `requirements.txt`. Pin additional libraries there if you extend the workflow.
+- No dedicated tests ship with the project yet; consider adding regression tests (e.g., with `pytest`) if you automate calculations outside the UI.
