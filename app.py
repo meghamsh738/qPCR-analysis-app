@@ -67,6 +67,23 @@ def _to_int(x):
     except:
         return np.nan
 
+
+def _guess_label_col(df: pd.DataFrame) -> str:
+    """Pick a likely sample label column."""
+    for cand in ["Label", "Sample", "Sample ID", "Sample Name", "SampleID", "SampleName"]:
+        for col in df.columns:
+            if str(col).strip().lower() == cand.strip().lower():
+                return col
+    return df.columns[0]
+
+
+def _guess_rep_col(df: pd.DataFrame) -> str | None:
+    for col in df.columns:
+        cl = str(col).lower()
+        if "rep" in cl:
+            return col
+    return None
+
 def _best_numeric_column_as_cq(df):
     """Pick the most likely numeric column to be Cq when no 'Cq' header exists.
        Strategy: choose non-core columns with the highest count of numeric-parsable values,
@@ -314,7 +331,29 @@ except Exception as e:
     st.error(f"Could not read the data: {e}")
     st.stop()
 
-raw_df = coerce_columns(df_raw)
+# Column mapping UI (allows manual selection of label/Cq/replicate headers)
+st.sidebar.markdown("---")
+st.sidebar.subheader("Column mapping")
+
+cols_available = list(df_raw.columns)
+label_default = _guess_label_col(df_raw)
+cq_default = "Cq" if "Cq" in df_raw.columns else _best_numeric_column_as_cq(df_raw) or cols_available[-1]
+rep_guess = _guess_rep_col(df_raw)
+
+label_col = st.sidebar.selectbox("Sample label column", options=cols_available, index=cols_available.index(label_default) if label_default in cols_available else 0)
+cq_col = st.sidebar.selectbox("Cq column", options=cols_available, index=cols_available.index(cq_default) if cq_default in cols_available else len(cols_available)-1)
+rep_options = ["<none>"] + cols_available
+rep_col_choice = st.sidebar.selectbox("Replicate column (optional)", options=rep_options, index=rep_options.index(rep_guess) if rep_guess in cols_available else 0)
+
+df_mapped = df_raw.copy()
+df_mapped["Label"] = df_raw[label_col]
+df_mapped["Cq"] = df_raw[cq_col]
+if rep_col_choice != "<none>":
+    df_mapped["Replicate"] = df_raw[rep_col_choice]
+else:
+    df_mapped["Replicate"] = 1
+
+raw_df = coerce_columns(df_mapped)
 
 # Keep column + outliers
 raw_df["keep"] = True
