@@ -542,6 +542,8 @@ else:
     dd_df["DeltaDeltaCt"] = dd_df["DeltaCt"] - dd_df["CalibDeltaCt"]
     dd_df["FoldChange"] = 2 ** (-dd_df["DeltaDeltaCt"])
     st.dataframe(dd_df[["Plate","Well","Gene","Label","Cq","RefCq","DeltaCt","CalibDeltaCt","DeltaDeltaCt","FoldChange"]])
+    dd_csv = dd_df[["Plate","Well","Gene","Label","Cq","RefCq","DeltaCt","CalibDeltaCt","DeltaDeltaCt","FoldChange"]].to_csv(index=False).encode()
+    st.download_button("Download ΔΔCt table (CSV)", dd_csv, file_name="ddct_results.csv", mime="text/csv")
 
     # placeholders to keep downstream variables defined
     map_df = pd.DataFrame()
