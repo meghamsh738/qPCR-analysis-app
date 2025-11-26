@@ -217,8 +217,10 @@ def replicate_stats(clean_df: pd.DataFrame):
     return agg
 
 def normalize_to_ref(q_df: pd.DataFrame, ref_gene: str):
+    """Return per-sample aggregates with normalization against ref gene."""
     if q_df.empty:
-        return pd.DataFrame(columns=["Gene","Label","Qty_mean","Qty_sd","n","RefQty","Norm_Qty"])
+        cols = ["Gene","Label","Qty_mean","Qty_sd","n","RefQty","Norm_Qty"]
+        return pd.DataFrame(columns=cols)
     agg = (
         q_df.groupby(["Gene", "Label"], dropna=False)["Quantity"]
         .agg(Qty_mean="mean", Qty_sd="std", n="count")
@@ -232,7 +234,7 @@ def normalize_to_ref(q_df: pd.DataFrame, ref_gene: str):
     merged["Norm_Qty"] = merged["Qty_mean"] / merged["RefQty"]
     return merged
 
-def download_excel(clean_df, rep_stats, std_map_df, curves_df, std_points_df, quant_df, norm_df):
+def download_excel(clean_df, rep_stats, std_map_df, curves_df, std_points_df, quant_df, norm_df, per_well_norm_df):
     out = io.BytesIO()
     with pd.ExcelWriter(out, engine="openpyxl") as xls:
         clean_df.to_excel(xls, sheet_name="Cleaned_Wells", index=False)
@@ -242,6 +244,37 @@ def download_excel(clean_df, rep_stats, std_map_df, curves_df, std_points_df, qu
         curves_df.to_excel(xls, sheet_name="StdCurve_Fits", index=False)
         quant_df.to_excel(xls, sheet_name="PerWell_Quant", index=False)
         norm_df.to_excel(xls, sheet_name="PerSample_Normalized", index=False)
+        per_well_norm_df.to_excel(xls, sheet_name="PerWell_Normalized", index=False)
+
+        try:
+            from openpyxl.drawing.image import Image as XLImage
+            plot_sheet = xls.book.create_sheet("StdCurve_Plots")
+            row_cursor = 1
+            for _, row in curves_df.iterrows():
+                gene = row["Gene"]
+                sub = std_points_df[std_points_df["Gene"] == gene]
+                if sub.empty or pd.isna(row.get("slope")):
+                    continue
+                x = sub["log10_conc"].values
+                y = sub["meanCq"].values
+                xp = np.linspace(min(x), max(x), 100)
+                yp = row["slope"] * xp + row["intercept"]
+                fig, ax = plt.subplots()
+                ax.scatter(x, y, label="Points")
+                ax.plot(xp, yp, linestyle="--", label=f"Fit (R²={row['R2']:.3f}, Eff={row['Efficiency_%']:.1f}%)")
+                ax.set_xlabel("log10(concentration)")
+                ax.set_ylabel("Cq")
+                ax.set_title(f"Std curve: {gene}")
+                ax.legend()
+                buf = io.BytesIO()
+                fig.savefig(buf, format="png", dpi=150, bbox_inches="tight")
+                plt.close(fig)
+                buf.seek(0)
+                img = XLImage(buf)
+                plot_sheet.add_image(img, f"A{row_cursor}")
+                row_cursor += 25
+        except Exception:
+            pass
     out.seek(0)
     return out
 
@@ -468,9 +501,23 @@ if norm_df["RefQty"].isna().all():
     st.info(f"Reference gene '{ref_gene}' missing in standards/samples; add a ref gene to see normalized values.")
 st.dataframe(norm_df)
 
+# Per-well normalized view (attach all metadata for export)
+per_well_norm = quant_df.merge(norm_df[["Label","RefQty"]], on="Label", how="left")
+per_well_norm["Norm_Qty"] = per_well_norm["Quantity"] / per_well_norm["RefQty"]
+
+# Build a metadata-rich per-well export (Plate/Well/Gene/Type/Label/Replicate/Cq + extras + keep/outlier)
+extra_cols = [c for c in clean_df.columns if c not in VALID_COLS + ["keep","Outlier","DeltaCq"]]
+meta_cols = ["Plate","Well","Gene","Type","Label","Replicate","Cq","keep","DeltaCq","Outlier"] + extra_cols
+meta_frame = clean_df[meta_cols].copy()
+export_norm_df = meta_frame.merge(
+    per_well_norm[["Plate","Well","Gene","Label","Replicate","Norm_Qty","RefQty"]],
+    on=["Plate","Well","Gene","Label","Replicate"],
+    how="left"
+)
+
 # ------------- export -------------
 st.subheader("7) Export")
-excel_bytes = download_excel(clean_df, rep_stats, map_df, curves_df, std_points, quant_df, norm_df)
+excel_bytes = download_excel(clean_df, rep_stats, map_df, curves_df, std_points, quant_df, export_norm_df, per_well_norm)
 st.download_button(
     label="Download Excel report",
     data=excel_bytes,
