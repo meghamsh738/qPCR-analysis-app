@@ -335,6 +335,12 @@ outlier_thresh = st.sidebar.slider("Outlier ΔCq threshold", 0.1, 3.0, 0.75, 0.0
 plate_scope = st.sidebar.selectbox("Fit standard curve by", ["Gene (all plates)", "Gene × Plate"])
 st.sidebar.markdown("---")
 ref_gene = st.sidebar.text_input("Reference gene", value="gapdh")
+quant_mode = st.sidebar.radio(
+    "Quantification mode",
+    ["Absolute (std curve)", "ΔΔCt (relative)"],
+    horizontal=True,
+    help="Absolute uses standard curves; ΔΔCt uses 2^-ΔΔCt relative expression."
+)
 
 st.title("qPCR Analysis (Standard-curve based)")
 st.markdown(
@@ -428,89 +434,122 @@ rep_stats = replicate_stats(collapsed_df)
 st.dataframe(rep_stats)
 
 # ------------- standards mapping -------------
-st.subheader("3) Standards map (Label → Concentration)")
-std_labels = clean_df.loc[(clean_df["Type"].str.lower()=="standard"), "Label"].dropna().unique().tolist()
-std_labels = sorted(std_labels, key=lambda x: (re.sub(r"\D","",x)=="", re.sub(r"\D","",x), x))
-auto_fill = _serial_dilution(std_labels, DEFAULT_TOP_CONC, DEFAULT_DILUTION_FACTOR, highest_first=True)
-default_map = pd.DataFrame({"Label": std_labels, "Concentration": auto_fill})
-st.caption("Default mapping uses a 4-fold serial dilution from the top standard; edit if your plate differs.")
+if quant_mode == "Absolute (std curve)":
+    st.subheader("3) Standards map (Label → Concentration)")
+    std_labels = clean_df.loc[(clean_df["Type"].str.lower()=="standard"), "Label"].dropna().unique().tolist()
+    std_labels = sorted(std_labels, key=lambda x: (re.sub(r"\D","",x)=="", re.sub(r"\D","",x), x))
+    auto_fill = _serial_dilution(std_labels, DEFAULT_TOP_CONC, DEFAULT_DILUTION_FACTOR, highest_first=True)
+    default_map = pd.DataFrame({"Label": std_labels, "Concentration": auto_fill})
+    st.caption("Default mapping uses a 4-fold serial dilution from the top standard; edit if your plate differs.")
 
-with st.expander("Auto-fill serial dilution"):
-    top = st.number_input("Top concentration", min_value=0.0, value=DEFAULT_TOP_CONC, step=1.0, format="%.6f")
-    factor = st.number_input("Dilution factor", min_value=1.0, value=DEFAULT_DILUTION_FACTOR, step=0.5, format="%.3f")
-    order = st.selectbox("Order of labels", ["Std1 highest → StdN lowest", "Std1 lowest → StdN highest"])
-    if st.button("Fill mapping from settings"):
-        default_map["Concentration"] = _serial_dilution(
-            std_labels,
-            top,
-            factor,
-            highest_first=order.startswith("Std1 highest")
-        )
+    with st.expander("Auto-fill serial dilution"):
+        top = st.number_input("Top concentration", min_value=0.0, value=DEFAULT_TOP_CONC, step=1.0, format="%.6f")
+        factor = st.number_input("Dilution factor", min_value=1.0, value=DEFAULT_DILUTION_FACTOR, step=0.5, format="%.3f")
+        order = st.selectbox("Order of labels", ["Std1 highest → StdN lowest", "Std1 lowest → StdN highest"])
+        if st.button("Fill mapping from settings"):
+            default_map["Concentration"] = _serial_dilution(
+                std_labels,
+                top,
+                factor,
+                highest_first=order.startswith("Std1 highest")
+            )
 
-map_df = st.data_editor(
-    default_map,
-    key="stdmap",
-    column_config={"Concentration": st.column_config.NumberColumn("Concentration", format="%.6f")},
-    hide_index=True,
-)
-if map_df["Concentration"].isna().any():
-    st.warning("⚠️ Some standard concentrations are missing. Fill them before fitting curves.")
+    map_df = st.data_editor(
+        default_map,
+        key="stdmap",
+        column_config={"Concentration": st.column_config.NumberColumn("Concentration", format="%.6f")},
+        hide_index=True,
+    )
+    if map_df["Concentration"].isna().any():
+        st.warning("⚠️ Some standard concentrations are missing. Fill them before fitting curves.")
 
-# ------------- fit curves -------------
-st.subheader("4) Fit standard curves")
-if plate_scope == "Gene × Plate":
-    std_input = collapsed_df[(collapsed_df["Type"].str.lower()=="standard") & (collapsed_df["keep"])].copy()
-    std_input["Gene"] = std_input["Gene"].astype(str) + " | " + std_input["Plate"].astype(str)
+if quant_mode == "Absolute (std curve)":
+    # ------------- fit curves -------------
+    st.subheader("4) Fit standard curves")
+    if plate_scope == "Gene × Plate":
+        std_input = collapsed_df[(collapsed_df["Type"].str.lower()=="standard") & (collapsed_df["keep"])].copy()
+        std_input["Gene"] = std_input["Gene"].astype(str) + " | " + std_input["Plate"].astype(str)
+    else:
+        std_input = collapsed_df[(collapsed_df["Type"].str.lower()=="standard") & (collapsed_df["keep"])].copy()
+
+    curves_df, std_points = fit_standard_curve(std_input, map_df)
+    st.dataframe(curves_df)
+
+    bad = curves_df[(curves_df["R2"] < 0.98) | (~curves_df["Efficiency_%"].between(90, 110))]
+    if bad.shape[0] > 0:
+        st.warning("Some curves have R² < 0.98 or efficiency outside 90–110%. Consider revising outliers or concentrations.")
+
+    st.caption("Each point: mean Cq at that standard level. Line: linear fit. Efficiency computed from slope.")
+    for _, row in curves_df.iterrows():
+        gene = row["Gene"]
+        sub = std_points[std_points["Gene"] == gene]
+        if sub.empty or pd.isna(row["slope"]):
+            continue
+        x = sub["log10_conc"].values
+        y = sub["meanCq"].values
+        xp = np.linspace(min(x), max(x), 100)
+        yp = row["slope"]*xp + row["intercept"]
+        fig, ax = plt.subplots()
+        ax.scatter(x, y, label="Points")
+        ax.plot(xp, yp, linestyle="--", label=f"Fit (R²={row['R2']:.3f}, Eff={row['Efficiency_%']:.1f}%)")
+        ax.set_xlabel("log10(concentration)")
+        ax.set_ylabel("Cq")
+        ax.set_title(f"Standard curve: {gene}")
+        ax.legend()
+        st.pyplot(fig)
+
+    # ------------- quantify samples -------------
+    st.subheader("5) Quantify samples")
+    if plate_scope == "Gene × Plate":
+        samp_input = collapsed_df[(collapsed_df["Type"].str.lower()=="sample") & (collapsed_df["keep"])].copy()
+        samp_input["Gene"] = samp_input["Gene"].astype(str) + " | " + samp_input["Plate"].astype(str)
+    else:
+        samp_input = collapsed_df[(collapsed_df["Type"].str.lower()=="sample") & (collapsed_df["keep"])].copy()
+
+    quant_df = quantify_samples(samp_input, curves_df)
+    st.dataframe(quant_df.head(30))
+
+    # ------------- normalize -------------
+    st.subheader("6) Normalize to reference gene")
+    norm_df = normalize_to_ref(quant_df, ref_gene=ref_gene)
+    if norm_df["RefQty"].isna().all():
+        st.info(f"Reference gene '{ref_gene}' missing in standards/samples; add a ref gene to see normalized values.")
+    st.dataframe(norm_df)
+
+    # Per-well normalized view (attach all metadata for export)
+    per_well_norm = quant_df.merge(norm_df[["Label","RefQty"]], on="Label", how="left")
+    per_well_norm["Norm_Qty"] = per_well_norm["Quantity"] / per_well_norm["RefQty"]
 else:
-    std_input = collapsed_df[(collapsed_df["Type"].str.lower()=="standard") & (collapsed_df["keep"])].copy()
+    # ΔΔCt workflow
+    st.subheader("4) ΔΔCt (relative)")
+    ref_rows = collapsed_df[collapsed_df["Gene"].str.lower() == ref_gene.lower()].copy()
+    ref_mean = ref_rows.groupby("Label", dropna=False)["Cq"].mean().reset_index().rename(columns={"Cq":"RefCq"})
+    dd_df = collapsed_df.merge(ref_mean, on="Label", how="left")
+    dd_df = dd_df[dd_df["Gene"].str.lower() != ref_gene.lower()].copy()
+    dd_df["DeltaCt"] = dd_df["Cq"] - dd_df["RefCq"]
+    all_labels = sorted(dd_df["Label"].dropna().unique().tolist())
+    calibrators = st.multiselect("Calibrator labels", options=all_labels, default=all_labels[:1])
+    exclude = st.multiselect("Exclude from calibrator", options=calibrators, default=[])
+    calib_set = [l for l in calibrators if l not in exclude]
+    calib_means = (
+        dd_df[dd_df["Label"].isin(calib_set)]
+        .groupby("Gene")["DeltaCt"]
+        .mean()
+        .reset_index()
+        .rename(columns={"DeltaCt":"CalibDeltaCt"})
+    )
+    dd_df = dd_df.merge(calib_means, on="Gene", how="left")
+    dd_df["DeltaDeltaCt"] = dd_df["DeltaCt"] - dd_df["CalibDeltaCt"]
+    dd_df["FoldChange"] = 2 ** (-dd_df["DeltaDeltaCt"])
+    st.dataframe(dd_df[["Plate","Well","Gene","Label","Cq","RefCq","DeltaCt","CalibDeltaCt","DeltaDeltaCt","FoldChange"]])
 
-curves_df, std_points = fit_standard_curve(std_input, map_df)
-st.dataframe(curves_df)
-
-bad = curves_df[(curves_df["R2"] < 0.98) | (~curves_df["Efficiency_%"].between(90, 110))]
-if bad.shape[0] > 0:
-    st.warning("Some curves have R² < 0.98 or efficiency outside 90–110%. Consider revising outliers or concentrations.")
-
-st.caption("Each point: mean Cq at that standard level. Line: linear fit. Efficiency computed from slope.")
-for _, row in curves_df.iterrows():
-    gene = row["Gene"]
-    sub = std_points[std_points["Gene"] == gene]
-    if sub.empty or pd.isna(row["slope"]):
-        continue
-    x = sub["log10_conc"].values
-    y = sub["meanCq"].values
-    xp = np.linspace(min(x), max(x), 100)
-    yp = row["slope"]*xp + row["intercept"]
-    fig, ax = plt.subplots()
-    ax.scatter(x, y, label="Points")
-    ax.plot(xp, yp, linestyle="--", label=f"Fit (R²={row['R2']:.3f}, Eff={row['Efficiency_%']:.1f}%)")
-    ax.set_xlabel("log10(concentration)")
-    ax.set_ylabel("Cq")
-    ax.set_title(f"Standard curve: {gene}")
-    ax.legend()
-    st.pyplot(fig)
-
-# ------------- quantify samples -------------
-st.subheader("5) Quantify samples")
-if plate_scope == "Gene × Plate":
-    samp_input = collapsed_df[(collapsed_df["Type"].str.lower()=="sample") & (collapsed_df["keep"])].copy()
-    samp_input["Gene"] = samp_input["Gene"].astype(str) + " | " + samp_input["Plate"].astype(str)
-else:
-    samp_input = collapsed_df[(collapsed_df["Type"].str.lower()=="sample") & (collapsed_df["keep"])].copy()
-
-quant_df = quantify_samples(samp_input, curves_df)
-st.dataframe(quant_df.head(30))
-
-# ------------- normalize -------------
-st.subheader("6) Normalize to reference gene")
-norm_df = normalize_to_ref(quant_df, ref_gene=ref_gene)
-if norm_df["RefQty"].isna().all():
-    st.info(f"Reference gene '{ref_gene}' missing in standards/samples; add a ref gene to see normalized values.")
-st.dataframe(norm_df)
-
-# Per-well normalized view (attach all metadata for export)
-per_well_norm = quant_df.merge(norm_df[["Label","RefQty"]], on="Label", how="left")
-per_well_norm["Norm_Qty"] = per_well_norm["Quantity"] / per_well_norm["RefQty"]
+    # placeholders to keep downstream variables defined
+    map_df = pd.DataFrame()
+    curves_df = pd.DataFrame()
+    std_points = pd.DataFrame()
+    quant_df = pd.DataFrame()
+    norm_df = dd_df.rename(columns={"FoldChange":"Norm_Qty"})
+    per_well_norm = dd_df[["Plate","Well","Gene","Label","Cq","RefCq","DeltaCt","CalibDeltaCt","DeltaDeltaCt","FoldChange"]].copy()
 
 # Build a metadata-rich per-well export (one row per well)
 meta_cols = ["Plate","Well","Gene","Type","Label","Cq","keep","DeltaCq","Outlier"] + extra_cols
