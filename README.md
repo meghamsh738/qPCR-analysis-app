@@ -58,6 +58,20 @@ Use the download button at the bottom of the page to collect all derived tables 
 - When experimenting, load `mock_wells.csv`, copy its contents, and paste them into Step 0 to see the full workflow.
 - A small sample dataset is also in `sample-data/qpcr_example.csv` if you prefer to upload a file instead of pasting.
 
+## How calculations are done
+1) **Clean & outliers** – ΔCq per gene/label is median‐based; wells with ΔCq above the sidebar threshold are flagged. If a well is unchecked, its Cq becomes NaN.  
+2) **Replicate collapse** – Wells sharing Plate/Well/Gene/Type/Label are averaged (mean Cq) before any downstream math. Extra columns keep the first value.  
+3) **Standards** – For each gene (or Gene×Plate if selected):  
+   - log10(conc) from the standards map vs mean Cq → linear fit (slope, intercept).  
+   - R² and efficiency = (10^(−1/slope) − 1)·100.  
+4) **Quantities (absolute)** – For each kept sample well:  
+   - pred_log10Q = (Cq − intercept) / slope; Quantity = 10^pred_log10Q.  
+5) **Normalisation to ref gene** – Per label, RefQty is the mean Quantity of the chosen ref gene; Norm_Qty = Quantity / RefQty.  
+6) **Exports** – `PerWell_Normalized` carries one row per Plate/Well/Gene/Label with slope/intercept/pred_log10Q/Quantity/RefQty/Norm_Qty plus your metadata.  
+
+### ΔΔCt option?
+The app currently performs absolute quantification with ref-gene normalisation (step 5). A 2^-ΔΔCt readout is not yet exposed in the UI; we can add a toggle to pick a calibrator label and emit ΔΔCt/fold change if you want.
+
 ## Development Notes
 - The Streamlit script lives in `app.py`; update it and re-run `streamlit run app.py` to see changes.
 - Dependencies are listed in `requirements.txt`. Pin additional libraries there if you extend the workflow.
