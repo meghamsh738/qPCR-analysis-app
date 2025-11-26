@@ -524,7 +524,8 @@ export_norm_df = (
     .merge(per_well_norm[per_well_export_cols], on=merge_cols, how="left")
     # Ensure only one row per well/gene/label (collapse any accidental duplicate copies)
     .drop_duplicates(subset=["Plate","Well","Gene","Label"])
-    .sort_values(["Plate","Well","Gene","Label"])
+    # Order by gene first so reference and targets are grouped, not interleaved.
+    .sort_values(["Gene","Plate","Well","Label"])
 )
 
 # ------------- export -------------
