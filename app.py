@@ -516,7 +516,8 @@ per_well_export_cols = merge_cols + ["slope","intercept","pred_log10Q","Quantity
 export_norm_df = (
     meta_frame
     .merge(per_well_norm[per_well_export_cols], on=merge_cols, how="left")
-    .drop_duplicates()
+    .drop_duplicates(subset=merge_cols[:-1])  # collapse replicates; keep first per well/gene/label
+    .drop(columns=["Replicate"])
 )
 
 # ------------- export -------------
