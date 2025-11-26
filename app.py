@@ -509,10 +509,14 @@ per_well_norm["Norm_Qty"] = per_well_norm["Quantity"] / per_well_norm["RefQty"]
 extra_cols = [c for c in clean_df.columns if c not in VALID_COLS + ["keep","Outlier","DeltaCq"]]
 meta_cols = ["Plate","Well","Gene","Type","Label","Replicate","Cq","keep","DeltaCq","Outlier"] + extra_cols
 meta_frame = clean_df[meta_cols].copy()
-export_norm_df = meta_frame.merge(
-    per_well_norm[["Plate","Well","Gene","Label","Replicate","Norm_Qty","RefQty"]],
-    on=["Plate","Well","Gene","Label","Replicate"],
-    how="left"
+
+# Attach curve + quantity metadata so the Excel "PerWell_Normalized" sheet is fully informative.
+merge_cols = ["Plate","Well","Gene","Label","Replicate"]
+per_well_export_cols = merge_cols + ["slope","intercept","pred_log10Q","Quantity","RefQty","Norm_Qty"]
+export_norm_df = (
+    meta_frame
+    .merge(per_well_norm[per_well_export_cols], on=merge_cols, how="left")
+    .drop_duplicates()
 )
 
 # ------------- export -------------
