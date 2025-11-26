@@ -415,9 +415,16 @@ edited = st.data_editor(
 clean_df = edited.copy()
 clean_df.loc[~clean_df["keep"], "Cq"] = np.nan
 
+# Collapse exact duplicate wells (same Plate/Well/Gene/Type/Label); average Cq across kept replicates.
+extra_cols = [c for c in clean_df.columns if c not in VALID_COLS + ["keep","Outlier","DeltaCq"]]
+well_keys = ["Plate","Well","Gene","Type","Label"]
+agg_map = {"Cq": "mean", "keep": "any", "DeltaCq": "mean", "Outlier": "any"}
+agg_map.update({c: "first" for c in extra_cols})
+collapsed_df = clean_df.groupby(well_keys, as_index=False, dropna=False).agg(agg_map)
+
 # ------------- replicate averages -------------
 st.subheader("2) Replicate averages (auto-calculated)")
-rep_stats = replicate_stats(clean_df)
+rep_stats = replicate_stats(collapsed_df)
 st.dataframe(rep_stats)
 
 # ------------- standards mapping -------------
@@ -452,10 +459,10 @@ if map_df["Concentration"].isna().any():
 # ------------- fit curves -------------
 st.subheader("4) Fit standard curves")
 if plate_scope == "Gene × Plate":
-    std_input = clean_df[(clean_df["Type"].str.lower()=="standard") & (clean_df["keep"])].copy()
+    std_input = collapsed_df[(collapsed_df["Type"].str.lower()=="standard") & (collapsed_df["keep"])].copy()
     std_input["Gene"] = std_input["Gene"].astype(str) + " | " + std_input["Plate"].astype(str)
 else:
-    std_input = clean_df[(clean_df["Type"].str.lower()=="standard") & (clean_df["keep"])].copy()
+    std_input = collapsed_df[(collapsed_df["Type"].str.lower()=="standard") & (collapsed_df["keep"])].copy()
 
 curves_df, std_points = fit_standard_curve(std_input, map_df)
 st.dataframe(curves_df)
@@ -486,10 +493,10 @@ for _, row in curves_df.iterrows():
 # ------------- quantify samples -------------
 st.subheader("5) Quantify samples")
 if plate_scope == "Gene × Plate":
-    samp_input = clean_df[(clean_df["Type"].str.lower()=="sample") & (clean_df["keep"])].copy()
+    samp_input = collapsed_df[(collapsed_df["Type"].str.lower()=="sample") & (collapsed_df["keep"])].copy()
     samp_input["Gene"] = samp_input["Gene"].astype(str) + " | " + samp_input["Plate"].astype(str)
 else:
-    samp_input = clean_df[(clean_df["Type"].str.lower()=="sample") & (clean_df["keep"])].copy()
+    samp_input = collapsed_df[(collapsed_df["Type"].str.lower()=="sample") & (collapsed_df["keep"])].copy()
 
 quant_df = quantify_samples(samp_input, curves_df)
 st.dataframe(quant_df.head(30))
@@ -505,19 +512,17 @@ st.dataframe(norm_df)
 per_well_norm = quant_df.merge(norm_df[["Label","RefQty"]], on="Label", how="left")
 per_well_norm["Norm_Qty"] = per_well_norm["Quantity"] / per_well_norm["RefQty"]
 
-# Build a metadata-rich per-well export (Plate/Well/Gene/Type/Label/Replicate/Cq + extras + keep/outlier)
-extra_cols = [c for c in clean_df.columns if c not in VALID_COLS + ["keep","Outlier","DeltaCq"]]
-meta_cols = ["Plate","Well","Gene","Type","Label","Replicate","Cq","keep","DeltaCq","Outlier"] + extra_cols
-meta_frame = clean_df[meta_cols].copy()
+# Build a metadata-rich per-well export (one row per well)
+meta_cols = ["Plate","Well","Gene","Type","Label","Cq","keep","DeltaCq","Outlier"] + extra_cols
+meta_frame = collapsed_df[meta_cols].copy()
 
 # Attach curve + quantity metadata so the Excel "PerWell_Normalized" sheet is fully informative.
-merge_cols = ["Plate","Well","Gene","Label","Replicate"]
+merge_cols = ["Plate","Well","Gene","Label"]
 per_well_export_cols = merge_cols + ["slope","intercept","pred_log10Q","Quantity","RefQty","Norm_Qty"]
 export_norm_df = (
     meta_frame
     .merge(per_well_norm[per_well_export_cols], on=merge_cols, how="left")
     # Ensure only one row per well/gene/label (collapse any accidental duplicate copies)
-    .drop(columns=["Replicate"])
     .drop_duplicates(subset=["Plate","Well","Gene","Label"])
 )
 
