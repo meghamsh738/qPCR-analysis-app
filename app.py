@@ -523,7 +523,8 @@ export_norm_df = (
 
 # ------------- export -------------
 st.subheader("7) Export")
-excel_bytes = download_excel(clean_df, rep_stats, map_df, curves_df, std_points, quant_df, export_norm_df, per_well_norm)
+# Pass per-sample normalized table separately from the per-well export table
+excel_bytes = download_excel(clean_df, rep_stats, map_df, curves_df, std_points, quant_df, norm_df, export_norm_df)
 st.download_button(
     label="Download Excel report",
     data=excel_bytes,
