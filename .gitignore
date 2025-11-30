@@ -13,3 +13,4 @@ frontend/dist/
 # Editors
 .idea/
 .DS_Store
+.venv
