@@ -52,6 +52,12 @@ Additional views from the full workflow:
 
 Use the download button at the bottom of the page to collect all derived tables (plus rendered standard-curve plots) into a single Excel workbook for record keeping.
 
+## Data format & quick AI helper
+- Best-fit columns (CSV/TSV/Excel): `Plate, Well, Gene, Type, Label, Replicate, Cq`. Optional extras are ignored safely. See `sample-data/qpcr_example.csv`.
+- To reshape quickly, use: [ChatGPT](https://chat.openai.com/), [Gemini](https://gemini.google.com/app), [Grok](https://grok.com/).
+- Prompt: "Convert my table to CSV with headers: Plate, Well, Gene, Type, Label, Replicate, Cq. Keep my data, no invented rows, output UTF-8 CSV text only."
+- Save as `qpcr_example.csv` (any name) and upload/paste. Visual helper: `screenshots/data-format-helper.svg`.
+
 ## Tips
 - Paste data exactly as exported; the app trims whitespace, harmonises case, and interprets common "NA"/"Undetermined" tokens automatically.
 - Keep at least two standard levels with known concentrations per gene to enable curve fitting.
