@@ -354,6 +354,19 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+with st.expander("Need to reformat your wells? AI helper prompt"):
+    st.markdown(
+        """
+[ChatGPT](https://chat.openai.com/) · [Gemini](https://gemini.google.com/app) · [Grok](https://grok.com/)
+
+**Prompt**
+```text
+Convert my table to CSV with headers: Plate, Well, Gene, Type, Label, Replicate, Cq. Normalize Well to A1-style, Replicate numeric, Cq numeric or NA, keep all rows, no invented data. Output CSV only.
+```
+Paste the returned CSV into the uploader or sidebar paste box.
+        """
+    )
+
 # Load
 try:
     if input_mode == "Upload file":
