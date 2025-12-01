@@ -14,7 +14,7 @@ Status: this Streamlit app is the canonical version. A prior React/FastAPI exper
 
 ## Screenshot
 
-Example run using the bundled `mock_wells.csv` (loaded via the sidebar button) and default options:
+Example run using the bundled `mock_wells.csv` (loaded via the sidebar button) and default options (refreshed Dec 1, 2025):
 
 ![qPCR analysis dashboard screenshot](screenshots/example_run.png)
 
