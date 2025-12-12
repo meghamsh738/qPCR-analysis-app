@@ -5,10 +5,15 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import io, re
+from pathlib import Path
 from datetime import datetime
 import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="qPCR Analysis", layout="wide")
+APP_DIR = Path(__file__).resolve().parent
+EXAMPLE_WELLS_PATH = APP_DIR / "sample-data" / "qpcr_example.csv"
+PLOT_BG = "#0b1224"
+
+st.set_page_config(page_title="qPCR Analysis", page_icon="🧬", layout="wide")
 
 VALID_COLS = ["Plate", "Well", "Gene", "Type", "Label", "Replicate", "Cq"]
 DEFAULT_TOP_CONC = 1000.0
@@ -17,12 +22,19 @@ DEFAULT_DILUTION_FACTOR = 4.0
 st.markdown(
     """
     <style>
+        :root {
+            --qpcr-surface: rgba(255,255,255,0.03);
+            --qpcr-border: rgba(255,255,255,0.08);
+            --qpcr-text-muted: rgba(232,238,252,0.72);
+            --qpcr-accent: #22d3ee;
+            --qpcr-accent-2: #a78bfa;
+        }
         .hero {
             padding: 1rem 1.25rem;
             border-radius: 14px;
-            background: linear-gradient(120deg, #0f172a, #1c2740);
-            color: #e2e8f0;
-            border: 1px solid #1f2a44;
+            background: linear-gradient(120deg, rgba(34, 211, 238, 0.10), rgba(167, 139, 250, 0.10));
+            color: #e8eefc;
+            border: 1px solid rgba(255, 255, 255, 0.10);
             margin-bottom: 0.75rem;
         }
         .hero h4 {
@@ -31,6 +43,7 @@ st.markdown(
         }
         .hero p {
             margin: 0;
+            color: var(--qpcr-text-muted);
         }
         .pill {
             display: inline-flex;
@@ -38,11 +51,20 @@ st.markdown(
             gap: 0.35rem;
             padding: 0.25rem 0.7rem;
             border-radius: 999px;
-            background: #38bdf8;
-            color: #0b1324;
+            background: linear-gradient(120deg, var(--qpcr-accent), var(--qpcr-accent-2));
+            color: #07101f;
             font-weight: 700;
             font-size: 0.85rem;
             letter-spacing: 0.01em;
+        }
+        .qpcr-card {
+            padding: 0.9rem 1rem;
+            border-radius: 14px;
+            background: var(--qpcr-surface);
+            border: 1px solid var(--qpcr-border);
+        }
+        .qpcr-muted {
+            color: var(--qpcr-text-muted);
         }
     </style>
     """,
@@ -162,6 +184,29 @@ def r2_score(y_true, y_pred):
     ss_tot = np.sum((y_true - np.mean(y_true)) ** 2)
     return 1 - ss_res / ss_tot if ss_tot != 0 else np.nan
 
+def make_std_curve_figure(gene: str, x: np.ndarray, y: np.ndarray, slope: float, intercept: float, r2: float, eff: float):
+    xp = np.linspace(float(np.min(x)), float(np.max(x)), 100)
+    yp = slope * xp + intercept
+
+    fig, ax = plt.subplots(figsize=(6.6, 4.0), dpi=140)
+    fig.patch.set_facecolor(PLOT_BG)
+    ax.set_facecolor(PLOT_BG)
+    ax.grid(True, color=(1, 1, 1, 0.08), linewidth=0.8)
+
+    ax.scatter(x, y, s=56, color="#38bdf8", edgecolor="#070b14", linewidth=0.6, label="Std mean Cq", zorder=3)
+    ax.plot(xp, yp, linestyle="--", linewidth=2.2, color="#a78bfa", label=f"Fit (R²={r2:.3f}, Eff={eff:.1f}%)")
+
+    ax.set_xlabel("log10(concentration)", color="#cbd5e1")
+    ax.set_ylabel("Cq", color="#cbd5e1")
+    ax.set_title(f"Standard curve — {gene}", color="#e8eefc", pad=10)
+
+    for spine in ax.spines.values():
+        spine.set_color((1, 1, 1, 0.18))
+    ax.tick_params(colors="#cbd5e1")
+    ax.legend(frameon=False, fontsize=9)
+    fig.tight_layout()
+    return fig
+
 def fit_standard_curve(std_df: pd.DataFrame, mapping: pd.DataFrame):
     m = mapping.dropna(subset=["Label", "Concentration"]).copy()
     m["Label"] = m["Label"].astype(str)
@@ -188,7 +233,10 @@ def fit_standard_curve(std_df: pd.DataFrame, mapping: pd.DataFrame):
             "Efficiency_%": eff,
             "n_points": sub.shape[0]
         })
-    return pd.DataFrame(curves), g
+    curves_df = pd.DataFrame(curves)
+    if curves_df.empty:
+        curves_df = pd.DataFrame(columns=["Gene", "slope", "intercept", "R2", "Efficiency_%", "n_points"])
+    return curves_df, g
 
 def quantify_samples(samples_df: pd.DataFrame, curves_df: pd.DataFrame):
     df = samples_df.merge(curves_df[["Gene","slope","intercept"]], on="Gene", how="left")
@@ -315,17 +363,19 @@ def _serial_dilution(labels, top, factor, highest_first=True):
     return vals
 
 # ------------- UI -------------
-st.sidebar.title("Settings")
-input_mode = st.sidebar.radio("Input source", ["Upload file", "Paste table"], horizontal=True)
+st.sidebar.title("qPCR Analysis")
+st.sidebar.caption("Load example wells, upload a file, or paste a table.")
+
+input_mode = st.sidebar.radio("Input source", ["Example (sample-data/qpcr_example.csv)", "Upload file", "Paste table"], index=0)
 
 uploaded_file = None
 pasted_text = ""
 if input_mode == "Upload file":
-    uploaded_file = st.sidebar.file_uploader("CSV or Excel", type=["csv","tsv","txt","xlsx"])
-else:
+    uploaded_file = st.sidebar.file_uploader("CSV / TSV / Excel", type=["csv", "tsv", "txt", "xlsx"])
+elif input_mode == "Paste table":
     st.sidebar.caption("Paste Excel/Sheets selection or CSV/TSV (first row must be headers).")
     pasted_text = st.sidebar.text_area(
-        "Paste table here",
+        "Paste table",
         height=220,
         placeholder="Plate\tWell\tGene\tType\tLabel\tReplicate\tGroup\tCq\nPlate 1\tA1\thcar2\tSample\tA3\t1\tUNDETERMINED\t30.23937102\n..."
     )
@@ -342,13 +392,13 @@ quant_mode = st.sidebar.radio(
     help="Absolute uses standard curves; ΔΔCt uses 2^-ΔΔCt relative expression."
 )
 
-st.title("qPCR Analysis (Standard-curve based)")
+st.title("qPCR Analysis")
 st.markdown(
     """
     <div class="hero">
-        <div class="pill">4-fold standards by default</div>
-        <h4>QC → standard curves → quant → export</h4>
-        <p>Paste or upload wells, flag outliers, prefill serial dilutions, and export a tidy Excel report.</p>
+        <div class="pill">Standard-curve workflow</div>
+        <h4>Clean → replicate QC → fit → quantify → export</h4>
+        <p>Load example wells, paste instrument output, flag outliers, prefill serial dilutions, and export a tidy Excel report.</p>
     </div>
     """,
     unsafe_allow_html=True,
@@ -369,14 +419,19 @@ Paste the returned CSV into the uploader or sidebar paste box.
 
 # Load
 try:
-    if input_mode == "Upload file":
+    if input_mode.startswith("Example"):
+        if not EXAMPLE_WELLS_PATH.exists():
+            st.error(f"Missing example file: {EXAMPLE_WELLS_PATH}")
+            st.stop()
+        df_raw = pd.read_csv(EXAMPLE_WELLS_PATH)
+    elif input_mode == "Upload file":
         if uploaded_file is None:
             st.info("Upload a CSV/Excel with columns: Plate, Well, Gene, Type, Label, Replicate, (Group optional), Cq.")
             st.stop()
         df_raw = read_from_file(uploaded_file)
     else:
         if not pasted_text.strip():
-            st.info("Paste your table on the left. Your last column (even if unnamed) will be auto-detected as Cq.")
+            st.info("Paste your table in the sidebar. Your last column (even if unnamed) will be auto-detected as Cq.")
             st.stop()
         df_raw = read_from_paste(pasted_text)
 except Exception as e:
@@ -430,6 +485,7 @@ edited = st.data_editor(
         "Cq": st.column_config.NumberColumn("Cq", format="%.3f")
     },
     hide_index=True,
+    width="stretch",
 )
 clean_df = edited.copy()
 clean_df.loc[~clean_df["keep"], "Cq"] = np.nan
@@ -444,7 +500,7 @@ collapsed_df = clean_df.groupby(well_keys, as_index=False, dropna=False).agg(agg
 # ------------- replicate averages -------------
 st.subheader("2) Replicate averages (auto-calculated)")
 rep_stats = replicate_stats(collapsed_df)
-st.dataframe(rep_stats)
+st.dataframe(rep_stats, width="stretch", height=440)
 
 # ------------- standards mapping -------------
 if quant_mode == "Absolute (std curve)":
@@ -472,9 +528,10 @@ if quant_mode == "Absolute (std curve)":
         key="stdmap",
         column_config={"Concentration": st.column_config.NumberColumn("Concentration", format="%.6f")},
         hide_index=True,
+        width="stretch",
     )
     if map_df["Concentration"].isna().any():
-        st.warning("⚠️ Some standard concentrations are missing. Fill them before fitting curves.")
+        st.warning("Some standard concentrations are missing. Fill them before fitting curves.")
 
 if quant_mode == "Absolute (std curve)":
     # ------------- fit curves -------------
@@ -486,30 +543,35 @@ if quant_mode == "Absolute (std curve)":
         std_input = collapsed_df[(collapsed_df["Type"].str.lower()=="standard") & (collapsed_df["keep"])].copy()
 
     curves_df, std_points = fit_standard_curve(std_input, map_df)
-    st.dataframe(curves_df)
+    st.dataframe(curves_df, width="stretch", height=260)
 
-    bad = curves_df[(curves_df["R2"] < 0.98) | (~curves_df["Efficiency_%"].between(90, 110))]
-    if bad.shape[0] > 0:
-        st.warning("Some curves have R² < 0.98 or efficiency outside 90–110%. Consider revising outliers or concentrations.")
+    if curves_df.empty:
+        st.info("No standard curves to fit yet. Add standards (Type=Standard) and fill the standards map.")
+    else:
+        bad = curves_df[(curves_df["R2"] < 0.98) | (~curves_df["Efficiency_%"].between(90, 110))]
+        if bad.shape[0] > 0:
+            st.warning("Some curves have R² < 0.98 or efficiency outside 90–110%. Consider revising outliers or concentrations.")
 
-    st.caption("Each point: mean Cq at that standard level. Line: linear fit. Efficiency computed from slope.")
-    for _, row in curves_df.iterrows():
-        gene = row["Gene"]
-        sub = std_points[std_points["Gene"] == gene]
-        if sub.empty or pd.isna(row["slope"]):
-            continue
-        x = sub["log10_conc"].values
-        y = sub["meanCq"].values
-        xp = np.linspace(min(x), max(x), 100)
-        yp = row["slope"]*xp + row["intercept"]
-        fig, ax = plt.subplots()
-        ax.scatter(x, y, label="Points")
-        ax.plot(xp, yp, linestyle="--", label=f"Fit (R²={row['R2']:.3f}, Eff={row['Efficiency_%']:.1f}%)")
-        ax.set_xlabel("log10(concentration)")
-        ax.set_ylabel("Cq")
-        ax.set_title(f"Standard curve: {gene}")
-        ax.legend()
-        st.pyplot(fig)
+        show_plots = st.toggle("Show curve plots", value=True)
+        if show_plots:
+            st.caption("Each point: mean Cq at that standard level. Line: linear fit. Efficiency computed from slope.")
+            for _, row in curves_df.iterrows():
+                gene = row["Gene"]
+                sub = std_points[std_points["Gene"] == gene]
+                if sub.empty or pd.isna(row["slope"]):
+                    continue
+                x = sub["log10_conc"].values
+                y = sub["meanCq"].values
+                fig = make_std_curve_figure(
+                    gene=str(gene),
+                    x=x,
+                    y=y,
+                    slope=float(row["slope"]),
+                    intercept=float(row["intercept"]),
+                    r2=float(row["R2"]),
+                    eff=float(row["Efficiency_%"]),
+                )
+                st.pyplot(fig, width="stretch")
 
     # ------------- quantify samples -------------
     st.subheader("5) Quantify samples")
@@ -520,14 +582,14 @@ if quant_mode == "Absolute (std curve)":
         samp_input = collapsed_df[(collapsed_df["Type"].str.lower()=="sample") & (collapsed_df["keep"])].copy()
 
     quant_df = quantify_samples(samp_input, curves_df)
-    st.dataframe(quant_df.head(30))
+    st.dataframe(quant_df.head(60), width="stretch", height=440)
 
     # ------------- normalize -------------
     st.subheader("6) Normalize to reference gene")
     norm_df = normalize_to_ref(quant_df, ref_gene=ref_gene)
     if norm_df["RefQty"].isna().all():
         st.info(f"Reference gene '{ref_gene}' missing in standards/samples; add a ref gene to see normalized values.")
-    st.dataframe(norm_df)
+    st.dataframe(norm_df, width="stretch", height=440)
 
     # Per-well normalized view (attach all metadata for export)
     per_well_norm = quant_df.merge(norm_df[["Label","RefQty"]], on="Label", how="left")
@@ -554,7 +616,7 @@ else:
     dd_df = dd_df.merge(calib_means, on="Gene", how="left")
     dd_df["DeltaDeltaCt"] = dd_df["DeltaCt"] - dd_df["CalibDeltaCt"]
     dd_df["FoldChange"] = 2 ** (-dd_df["DeltaDeltaCt"])
-    st.dataframe(dd_df[["Plate","Well","Gene","Label","Cq","RefCq","DeltaCt","CalibDeltaCt","DeltaDeltaCt","FoldChange"]])
+    st.dataframe(dd_df[["Plate","Well","Gene","Label","Cq","RefCq","DeltaCt","CalibDeltaCt","DeltaDeltaCt","FoldChange"]], width="stretch", height=440)
     dd_csv = dd_df[["Plate","Well","Gene","Label","Cq","RefCq","DeltaCt","CalibDeltaCt","DeltaDeltaCt","FoldChange"]].to_csv(index=False).encode()
     st.download_button("Download ΔΔCt table (CSV)", dd_csv, file_name="ddct_results.csv", mime="text/csv")
 
@@ -565,6 +627,12 @@ else:
     quant_df = pd.DataFrame()
     norm_df = dd_df.rename(columns={"FoldChange":"Norm_Qty"})
     per_well_norm = dd_df[["Plate","Well","Gene","Label","Cq","RefCq","DeltaCt","CalibDeltaCt","DeltaDeltaCt","FoldChange"]].copy()
+    per_well_norm["slope"] = np.nan
+    per_well_norm["intercept"] = np.nan
+    per_well_norm["pred_log10Q"] = np.nan
+    per_well_norm["Quantity"] = np.nan
+    per_well_norm["RefQty"] = np.nan
+    per_well_norm["Norm_Qty"] = per_well_norm["FoldChange"]
 
 # Build a metadata-rich per-well export (one row per well)
 meta_cols = ["Plate","Well","Gene","Type","Label","Cq","keep","DeltaCq","Outlier"] + extra_cols
@@ -591,6 +659,7 @@ st.download_button(
     data=excel_bytes,
     file_name=f"qpcr_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    type="primary",
 )
 
 st.success("Done. Paste/upload → clean → averages → fit → quantify → normalize → export.")

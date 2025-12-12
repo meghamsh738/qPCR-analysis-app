@@ -14,7 +14,7 @@ Status: this Streamlit app is the canonical version. A prior React/FastAPI exper
 
 ## Screenshot
 
-Example run using the bundled `mock_wells.csv` (loaded via the sidebar button) and default options (refreshed Dec 1, 2025):
+Example run using the bundled `sample-data/qpcr_example.csv` (select **Example** in the sidebar) and default options (refreshed Dec 12, 2025):
 
 ![qPCR analysis dashboard screenshot](screenshots/example_run.png)
 
@@ -42,13 +42,14 @@ Additional views from the full workflow:
 4. Streamlit prints a local URL (typically http://localhost:8501). Open it in your browser.
 
 ## Using the Dashboard
-1. **Step 0 – Paste wells:** Copy the table from your qPCR software and paste it into the sidebar text box. Required columns are `Gene`, `Label`, and `Cq`; optional metadata (Plate, Well, Type, Replicate, Concentration, Amp Status) is auto-detected. Or click **Load example wells (mock_wells.csv)** to fill in the bundled sample dataset instantly.
-2. **Step 1 – Selection:** Toggle which genes to analyse, choose the reference gene, and select calibrator labels for ΔΔCt.
-3. **Step 2 – Standard curve:** Standards with concentration data are fitted per gene; review slope/intercept/R²/efficiency and inspect the generated matplotlib plot.
-4. **Step 3 – Quantities:** Sample Cq values are converted into absolute quantities using the fitted curve for each gene.
-5. **Step 4 – Normalisation:** Quantities are normalised to the reference gene, exposing fold changes across samples.
-6. **Step 5 – Relative expression:** 2^-ΔΔCt values are produced relative to the chosen calibrator pool, with warnings if prerequisites are missing.
-7. **Step 6 – Missing standards:** Quickly spot genes lacking enough standard dilutions to produce a trustworthy curve.
+The workflow is split across tabs: **Wells → Replicates → Standards → Curves → Quantify → Normalize → Export**.
+
+1. **Wells:** Paste or upload wells. Minimum columns are `Gene`, `Label`, and `Cq`; optional metadata (Plate, Well, Type, Replicate) is auto-detected. Use **Example** in the sidebar to load `sample-data/qpcr_example.csv`.
+2. **Replicates:** Review mean/SD/CV and verify outliers.
+3. **Standards:** Fill the standards map (Label → Concentration) and optionally auto-fill a serial dilution series.
+4. **Curves:** Standards are fitted per gene (or per gene×plate); review slope/intercept/R²/efficiency and inspect the plot.
+5. **Quantify / Normalize:** Convert sample Cq values into absolute quantities using the fitted curve, then normalize to the reference gene.
+6. **Export:** Download an Excel workbook that bundles all derived tables.
 
 Use the download button at the bottom of the page to collect all derived tables (plus rendered standard-curve plots) into a single Excel workbook for record keeping.
 
@@ -61,8 +62,8 @@ Use the download button at the bottom of the page to collect all derived tables 
 ## Tips
 - Paste data exactly as exported; the app trims whitespace, harmonises case, and interprets common "NA"/"Undetermined" tokens automatically.
 - Keep at least two standard levels with known concentrations per gene to enable curve fitting.
-- When experimenting, load `mock_wells.csv`, copy its contents, and paste them into Step 0 to see the full workflow.
-- A small sample dataset is also in `sample-data/qpcr_example.csv` if you prefer to upload a file instead of pasting.
+- When experimenting, use the **Example** input source to load `sample-data/qpcr_example.csv` (includes standards and samples).
+- If you only want replicate QC (no standards), `mock_wells.csv` is a minimal wells table you can paste/upload.
 
 ## How calculations are done
 1) **Clean & outliers** – ΔCq per gene/label is median‐based; wells with ΔCq above the sidebar threshold are flagged. If a well is unchecked, its Cq becomes NaN.  

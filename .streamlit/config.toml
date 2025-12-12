@@ -1,0 +1,12 @@
+[theme]
+# Modern dark lab theme
+base = "dark"
+primaryColor = "#22d3ee"
+backgroundColor = "#050814"
+secondaryBackgroundColor = "#0b1224"
+textColor = "#e8eefc"
+font = "sans serif"
+
+[client]
+showSidebarNavigation = false
+
