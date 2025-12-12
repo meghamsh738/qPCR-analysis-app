@@ -7,7 +7,7 @@ Status: this Streamlit app is the canonical version. A prior React/FastAPI exper
 ## Highlights
 - Paste CSV/TSV/Excel-style well tables or vendor exports; delimiter detection and case-insensitive column matching keep the input flexible.
 - Automatically reshapes vendor-specific columns, derives replicate numbers, and flags negative or control wells.
-- Per-gene tabs surface replicate statistics (mean Cq, SD, ΔCq), standard curve plots with slope/intercept/R²/efficiency, and concentration back-calculations.
+- Per-gene views surface replicate statistics (mean Cq, SD, ΔCq), standard curve plots with slope/intercept/R²/efficiency, and concentration back-calculations.
 - Calibrator-aware normalisation plus relative expression via 2^-ΔΔCt with selectable reference genes and calibrator pools.
 - One-click Excel export (`qpcr_results.xlsx`) that bundles cleaned wells, replicate summaries, standard curve points & plots, quantities, and relative-expression tables.
 - Includes `mock_wells.csv` so you can try the workflow without real instrument output.
@@ -42,14 +42,11 @@ Additional views from the full workflow:
 4. Streamlit prints a local URL (typically http://localhost:8501). Open it in your browser.
 
 ## Using the Dashboard
-The workflow is split across tabs: **Wells → Replicates → Standards → Curves → Quantify → Normalize → Export**.
-
-1. **Wells:** Paste or upload wells. Minimum columns are `Gene`, `Label`, and `Cq`; optional metadata (Plate, Well, Type, Replicate) is auto-detected. Use **Example** in the sidebar to load `sample-data/qpcr_example.csv`.
-2. **Replicates:** Review mean/SD/CV and verify outliers.
-3. **Standards:** Fill the standards map (Label → Concentration) and optionally auto-fill a serial dilution series.
-4. **Curves:** Standards are fitted per gene (or per gene×plate); review slope/intercept/R²/efficiency and inspect the plot.
-5. **Quantify / Normalize:** Convert sample Cq values into absolute quantities using the fitted curve, then normalize to the reference gene.
-6. **Export:** Download an Excel workbook that bundles all derived tables.
+1. **Input:** Choose **Example**, **Upload file**, or **Paste table** in the sidebar. Example loads `sample-data/qpcr_example.csv`.
+2. **Column mapping:** Confirm which columns correspond to Label/Cq/Replicate (helps when vendor exports don’t use standard headers).
+3. **Review & clean wells:** Toggle **keep** to drop bad replicates; outliers by ΔCq are flagged.
+4. **Quantification mode:** Pick **Absolute (std curve)** for standard-curve based quantities, or **ΔΔCt (relative)** for fold-change.
+5. **Export:** Download an Excel workbook that bundles cleaned wells, summaries, curve points/plots (if applicable), and normalized outputs.
 
 Use the download button at the bottom of the page to collect all derived tables (plus rendered standard-curve plots) into a single Excel workbook for record keeping.
 
@@ -77,7 +74,7 @@ Use the download button at the bottom of the page to collect all derived tables 
 6) **Exports** – `PerWell_Normalized` carries one row per Plate/Well/Gene/Label with slope/intercept/pred_log10Q/Quantity/RefQty/Norm_Qty plus your metadata.  
 
 ### ΔΔCt option?
-The app currently performs absolute quantification with ref-gene normalisation (step 5). A 2^-ΔΔCt readout is not yet exposed in the UI; we can add a toggle to pick a calibrator label and emit ΔΔCt/fold change if you want.
+Yes — choose **Quantification mode → ΔΔCt (relative)** in the sidebar, then select calibrator labels. The app shows FoldChange (= 2^-ΔΔCt) and provides a CSV download.
 
 ## Development Notes
 - The Streamlit script lives in `app.py`; update it and re-run `streamlit run app.py` to see changes.
