@@ -13,7 +13,7 @@ APP_DIR = Path(__file__).resolve().parent
 EXAMPLE_WELLS_PATH = APP_DIR / "sample-data" / "qpcr_example.csv"
 PLOT_BG = "#0b1224"
 
-st.set_page_config(page_title="qPCR Analysis", page_icon="🧬", layout="wide")
+st.set_page_config(page_title="qPCR Analysis", page_icon="🧬", layout="centered")
 
 VALID_COLS = ["Plate", "Well", "Gene", "Type", "Label", "Replicate", "Cq"]
 DEFAULT_TOP_CONC = 1000.0
@@ -22,49 +22,171 @@ DEFAULT_DILUTION_FACTOR = 4.0
 st.markdown(
     """
     <style>
-        :root {
-            --qpcr-surface: rgba(255,255,255,0.03);
-            --qpcr-border: rgba(255,255,255,0.08);
-            --qpcr-text-muted: rgba(232,238,252,0.72);
-            --qpcr-accent: #22d3ee;
-            --qpcr-accent-2: #a78bfa;
+        :root{
+          --bg: #F7F7F8;
+          --surface: #FFFFFF;
+          --surface-2: #FBFBFC;
+          --text: #111113;
+          --text-2: #5E5E66;
+          --text-3: #8A8A94;
+          --border: #E7E7EA;
+          --border-2: #D7D7DD;
+
+          --accent: #4F7CF7;
+          --accent-weak: rgba(79,124,247,0.14);
+          --focus: rgba(79,124,247,0.25);
+
+          --radius-sm: 10px;
+          --radius-md: 12px;
+
+          --s-1: 4px;
+          --s-2: 8px;
+          --s-3: 12px;
+          --s-4: 16px;
+          --s-5: 24px;
+          --s-6: 32px;
+
+          --shadow-1: 0 1px 2px rgba(0,0,0,0.06);
+
+          --font-sans: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+          --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
         }
-        .hero {
-            padding: 1rem 1.25rem;
-            border-radius: 14px;
-            background: linear-gradient(120deg, rgba(34, 211, 238, 0.10), rgba(167, 139, 250, 0.10));
-            color: #e8eefc;
-            border: 1px solid rgba(255, 255, 255, 0.10);
-            margin-bottom: 0.75rem;
+
+        @media (prefers-color-scheme: dark){
+          :root:not([data-theme="light"]){
+            --bg: #0B0B0C;
+            --surface: #141417;
+            --surface-2: #101012;
+            --text: #F1F1F3;
+            --text-2: #B7B7BF;
+            --text-3: #8F8F99;
+            --border: #232326;
+            --border-2: #2F2F35;
+
+            --accent-weak: rgba(79,124,247,0.18);
+            --focus: rgba(79,124,247,0.30);
+            --shadow-1: 0 1px 2px rgba(0,0,0,0.35);
+
+            color-scheme: dark;
+          }
         }
-        .hero h4 {
-            margin: 0.15rem 0 0.25rem 0;
-            font-weight: 700;
+
+        [data-theme="dark"]{
+          --bg: #0B0B0C;
+          --surface: #141417;
+          --surface-2: #101012;
+          --text: #F1F1F3;
+          --text-2: #B7B7BF;
+          --text-3: #8F8F99;
+          --border: #232326;
+          --border-2: #2F2F35;
+
+          --accent-weak: rgba(79,124,247,0.18);
+          --focus: rgba(79,124,247,0.30);
+          --shadow-1: 0 1px 2px rgba(0,0,0,0.35);
+
+          color-scheme: dark;
         }
-        .hero p {
-            margin: 0;
-            color: var(--qpcr-text-muted);
+
+        html, body, [data-testid="stAppViewContainer"]{
+          background: var(--bg);
+          color: var(--text);
+          font-family: var(--font-sans);
         }
-        .pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            padding: 0.25rem 0.7rem;
-            border-radius: 999px;
-            background: linear-gradient(120deg, var(--qpcr-accent), var(--qpcr-accent-2));
-            color: #07101f;
-            font-weight: 700;
-            font-size: 0.85rem;
-            letter-spacing: 0.01em;
+
+        .block-container{
+          max-width: 720px;
+          padding-top: 32px;
+          padding-bottom: 64px;
         }
-        .qpcr-card {
-            padding: 0.9rem 1rem;
-            border-radius: 14px;
-            background: var(--qpcr-surface);
-            border: 1px solid var(--qpcr-border);
+
+        [data-testid="stSidebar"]{
+          background: var(--surface);
+          border-right: 1px solid var(--border);
         }
-        .qpcr-muted {
-            color: var(--qpcr-text-muted);
+
+        a{
+          color: var(--accent);
+          text-decoration: underline;
+          text-underline-offset: 0.18em;
+          text-decoration-color: var(--border-2);
+        }
+
+        a:hover{
+          text-decoration-color: var(--accent);
+        }
+
+        code, pre{
+          font-family: var(--font-mono);
+        }
+
+        .stButton > button{
+          height: 40px;
+          border-radius: var(--radius-sm);
+          border: 1px solid var(--border);
+          background: var(--surface);
+          color: var(--text);
+          font-weight: 500;
+          transition: background-color 140ms ease-out, border-color 140ms ease-out, box-shadow 140ms ease-out, transform 140ms ease-out, filter 140ms ease-out;
+        }
+
+        .stButton > button:hover{
+          background: var(--surface-2);
+        }
+
+        .stButton > button:active{
+          transform: translateY(1px);
+        }
+
+        .stButton > button:focus-visible{
+          outline: none;
+          border-color: var(--border-2);
+          box-shadow: 0 0 0 2px var(--focus);
+        }
+
+        input, textarea, select{
+          border-radius: var(--radius-sm) !important;
+          border: 1px solid var(--border) !important;
+          background: var(--surface) !important;
+          color: var(--text) !important;
+        }
+
+        input:focus, textarea:focus, select:focus{
+          border-color: var(--border-2) !important;
+          box-shadow: 0 0 0 2px var(--focus) !important;
+        }
+
+        .hero{
+          padding: 16px 20px;
+          border-radius: var(--radius-md);
+          background: var(--surface);
+          color: var(--text);
+          border: 1px solid var(--border);
+          margin-bottom: 12px;
+        }
+
+        .hero h4{
+          margin: 6px 0 6px 0;
+          font-weight: 500;
+        }
+
+        .hero p{
+          margin: 0;
+          color: var(--text-2);
+        }
+
+        .pill{
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 4px 10px;
+          border-radius: 999px;
+          background: var(--accent-weak);
+          border: 1px solid var(--border);
+          color: var(--text);
+          font-weight: 500;
+          font-size: 12px;
+          letter-spacing: 0;
         }
     </style>
     """,
