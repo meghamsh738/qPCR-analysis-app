@@ -133,6 +133,7 @@ st.markdown(
         [data-testid="stSidebar"]{
           background: var(--surface);
           border-right: 1px solid var(--border);
+          color: var(--text);
         }
 
         [data-testid="stSidebar"] h1,
@@ -152,7 +153,10 @@ st.markdown(
         }
 
         [data-testid="stSidebar"] .stCaption,
-        [data-testid="stSidebar"] .stMarkdown{
+        [data-testid="stSidebar"] .stMarkdown,
+        [data-testid="stSidebar"] .stMarkdown p,
+        [data-testid="stSidebar"] .stMarkdown span,
+        [data-testid="stSidebar"] .stMarkdown li{
           color: var(--text-2);
         }
 
@@ -175,12 +179,18 @@ st.markdown(
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label span{
           color: var(--text);
           font-weight: 600;
+          opacity: 1;
         }
 
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:has(input:checked){
           border-color: var(--accent);
           background: var(--accent-weak);
           box-shadow: 0 0 0 2px var(--focus);
+        }
+
+        [data-testid="stSidebar"] input::placeholder,
+        [data-testid="stSidebar"] textarea::placeholder{
+          color: var(--text-3);
         }
 
         .streamlit-expanderHeader{
