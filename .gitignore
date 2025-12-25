@@ -5,10 +5,14 @@ __pycache__/
 .venv_codex/
 .venv_test/
 venv/
+.pytest_cache/
 
 # Node / front-end
 frontend/node_modules/
 frontend/dist/
+node_modules/
+test-results/
+playwright-report/
 
 # Editors
 .idea/

@@ -14,7 +14,7 @@ Status: this Streamlit app is the canonical version. A prior React/FastAPI exper
 
 ## Screenshot
 
-Example run using the bundled `sample-data/qpcr_example.csv` (select **Example** in the sidebar) and default options (refreshed Dec 12, 2025):
+Example run using the bundled `sample-data/qpcr_example.csv` (select **Example** in the sidebar) and default options (refreshed Dec 25, 2025):
 
 ![qPCR analysis dashboard screenshot](screenshots/example_run.png)
 
@@ -26,6 +26,17 @@ Additional views from the full workflow:
 ![Curves](screenshots/curves.png)
 ![Quant + Normalize](screenshots/quant_normalize.png)
 ![Export](screenshots/export.png)
+
+## Tests & screenshots
+```bash
+# Unit tests (core calculations)
+./.venv/bin/python -m pytest
+
+# E2E + screenshot refresh
+npm install
+npx playwright install --with-deps chromium
+npm run test:e2e
+```
 
 ## Quick Start
 1. **Prerequisites:** Python 3.9+ and `pip`. Creating a virtual environment is recommended.
@@ -77,6 +88,6 @@ Use the download button at the bottom of the page to collect all derived tables 
 Yes — choose **Quantification mode → ΔΔCt (relative)** in the sidebar, then select calibrator labels. The app shows FoldChange (= 2^-ΔΔCt) and provides a CSV download.
 
 ## Development Notes
-- The Streamlit script lives in `app.py`; update it and re-run `streamlit run app.py` to see changes.
-- Dependencies are listed in `requirements.txt`. Pin additional libraries there if you extend the workflow.
-- No dedicated tests ship with the project yet; consider adding regression tests (e.g., with `pytest`) if you automate calculations outside the UI.
+- The Streamlit UI lives in `app.py`, while calculation helpers are in `qpcr_core.py`.
+- Dependencies are listed in `requirements.txt`; dev-only tooling (pytest) is in `requirements-dev.txt`.
+- Run unit tests with `./.venv/bin/python -m pytest`; Playwright E2E refreshes the screenshots in `screenshots/`.
