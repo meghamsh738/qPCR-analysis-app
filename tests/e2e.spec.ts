@@ -19,7 +19,8 @@ test('example workflow screenshots', async ({ page }) => {
   await fs.mkdir(screenshotDir, { recursive: true })
 
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'qPCR Analysis' })).toBeVisible()
+  const mainHeading = page.getByTestId('stMainBlockContainer').getByRole('heading', { name: 'qPCR Analysis' })
+  await expect(mainHeading).toBeVisible()
   await expect(page.getByText('Wells loaded')).toBeVisible()
 
   await page.waitForTimeout(1000)

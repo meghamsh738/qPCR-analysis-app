@@ -135,6 +135,71 @@ st.markdown(
           border-right: 1px solid var(--border);
         }
 
+        [data-testid="stSidebar"] h1,
+        [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h3,
+        [data-testid="stSidebar"] h4{
+          color: var(--text);
+        }
+
+        [data-testid="stSidebar"] [data-testid="stWidgetLabel"] > label{
+          color: var(--text);
+          font-family: var(--font-mono);
+          font-size: 12px;
+          font-weight: 600;
+          letter-spacing: var(--tracking-label);
+          text-transform: uppercase;
+        }
+
+        [data-testid="stSidebar"] .stCaption,
+        [data-testid="stSidebar"] .stMarkdown{
+          color: var(--text-2);
+        }
+
+        [data-testid="stSidebar"] .stSlider > div > div > span{
+          color: var(--text);
+        }
+
+        [data-testid="stSidebar"] .stRadio div[role="radiogroup"]{
+          display: grid;
+          gap: 6px;
+        }
+
+        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label{
+          border: 1px solid var(--border);
+          background: var(--surface-2);
+          border-radius: 10px;
+          padding: 6px 10px;
+        }
+
+        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label span{
+          color: var(--text);
+          font-weight: 600;
+        }
+
+        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:has(input:checked){
+          border-color: var(--accent);
+          background: var(--accent-weak);
+          box-shadow: 0 0 0 2px var(--focus);
+        }
+
+        .streamlit-expanderHeader{
+          color: var(--text);
+          font-weight: 600;
+        }
+
+        [data-testid="stMetricLabel"]{
+          color: var(--text-2);
+          font-family: var(--font-mono);
+          letter-spacing: var(--tracking-label);
+          text-transform: uppercase;
+          font-weight: 600;
+        }
+
+        [data-testid="stMetricValue"]{
+          color: var(--text);
+        }
+
         a{
           color: var(--accent);
           text-decoration: underline;
