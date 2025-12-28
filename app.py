@@ -36,43 +36,45 @@ st.set_page_config(page_title="qPCR Analysis", page_icon="🧬", layout="centere
 st.markdown(
     """
     <style>
-        @import url("https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap");
+        @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap");
 
         :root{
-          --font-display: "Chakra Petch", "Space Grotesk", system-ui, sans-serif;
-          --font-body: "Space Grotesk", "Segoe UI", system-ui, -apple-system, sans-serif;
-          --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+          --font-display: "Space Grotesk", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+          --font-body: "Space Grotesk", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+          --font-mono: "Space Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
           --tracking-display: 0.08em;
           --tracking-label: 0.12em;
           --space-1: 4px;
           --space-2: 8px;
           --space-3: 12px;
           --space-4: 16px;
-          --space-5: 20px;
-          --space-6: 24px;
-          --radius-sm: 10px;
-          --radius-md: 14px;
-          --radius-lg: 18px;
-          --bg: #f4f6fb;
-          --panel: #ffffff;
-          --surface-2: #f7f8fc;
-          --surface-3: #eef2f7;
-          --border: rgba(15, 23, 42, 0.12);
-          --muted: #5b6b85;
-          --text: #0f172a;
-          --text-subtle: #344054;
-          --accent: #2f6af6;
-          --accent-strong: #1d4ed8;
-          --accent-soft: rgba(47, 106, 246, 0.14);
+          --space-5: 24px;
+          --space-6: 32px;
+          --radius-sm: 8px;
+          --radius-md: 12px;
+          --radius-lg: 12px;
+          --bg: #F6F2EA;
+          --panel: #FFFFFF;
+          --surface-2: #FFF7EC;
+          --surface-3: #F2EADF;
+          --border: #15151A;
+          --border-2: #0F0F14;
+          --muted: #575762;
+          --text: #111113;
+          --text-subtle: #2F2F36;
+          --accent: #1F5BFF;
+          --accent-strong: #1F5BFF;
+          --accent-soft: rgba(31, 91, 255, 0.18);
+          --focus: rgba(31, 91, 255, 0.35);
           --success: #12b76a;
           --success-soft: rgba(18, 183, 106, 0.16);
           --warning: #f59e0b;
           --warning-soft: rgba(245, 158, 11, 0.18);
-          --shadow: 0 20px 50px rgba(15, 23, 42, 0.12);
-          --shadow-soft: 0 10px 24px rgba(15, 23, 42, 0.08);
-          --app-gradient: radial-gradient(circle at 10% 10%, rgba(47, 106, 246, 0.12), transparent 45%),
-            radial-gradient(circle at 90% 0%, rgba(18, 183, 106, 0.12), transparent 40%),
-            linear-gradient(180deg, #f8fafc 0%, #eef2f8 100%);
+          --shadow: 10px 10px 0 rgba(17, 17, 20, 0.9);
+          --shadow-soft: 3px 3px 0 rgba(17, 17, 20, 0.9);
+          --app-gradient: radial-gradient(1200px 600px at 8% -10%, rgba(31, 91, 255, 0.12), transparent 60%),
+            radial-gradient(900px 500px at 95% 10%, rgba(0, 0, 0, 0.08), transparent 70%),
+            var(--bg);
         }
 
         *{
@@ -83,8 +85,9 @@ st.markdown(
           background: var(--app-gradient);
           color: var(--text);
           font-family: var(--font-body);
-          font-weight: 500;
-          letter-spacing: 0.01em;
+          font-weight: 400;
+          letter-spacing: 0;
+          color-scheme: light;
         }
 
         body{
@@ -120,7 +123,7 @@ st.markdown(
 
         [data-testid="stSidebar"]{
           background: var(--panel);
-          border-right: 1px solid var(--border);
+          border-right: 2px solid var(--border);
           color: var(--text);
         }
 
@@ -158,7 +161,7 @@ st.markdown(
         }
 
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label{
-          border: 1px solid var(--border);
+          border: 2px solid var(--border);
           background: var(--surface-2);
           border-radius: var(--radius-md);
           padding: 6px 10px;
@@ -171,9 +174,9 @@ st.markdown(
         }
 
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:has(input:checked){
-          border-color: rgba(47, 106, 246, 0.45);
+          border-color: rgba(31, 91, 255, 0.45);
           background: var(--accent-soft);
-          box-shadow: 0 0 0 2px rgba(47, 106, 246, 0.25);
+          box-shadow: 0 0 0 2px var(--focus);
         }
 
         [data-testid="stSidebar"] input::placeholder,
@@ -188,7 +191,7 @@ st.markdown(
 
         [data-testid="stMetric"]{
           background: var(--panel);
-          border: 1px solid var(--border);
+          border: 2px solid var(--border);
           border-radius: var(--radius-md);
           padding: 12px 14px;
           box-shadow: var(--shadow-soft);
@@ -210,7 +213,7 @@ st.markdown(
         .stDataEditor{
           border-radius: var(--radius-md);
           overflow: hidden;
-          border: 1px solid var(--border);
+          border: 2px solid var(--border);
           box-shadow: var(--shadow-soft);
         }
 
@@ -233,19 +236,23 @@ st.markdown(
         .stDownloadButton > button{
           height: 40px;
           border-radius: var(--radius-sm);
-          border: 1px solid var(--border);
-          background: var(--surface-2);
+          border: 2px solid var(--border);
+          background: var(--surface);
           color: var(--text);
           font-weight: 600;
           font-family: var(--font-mono);
           letter-spacing: var(--tracking-label);
           text-transform: uppercase;
           transition: background-color 120ms ease-out, border-color 120ms ease-out, box-shadow 120ms ease-out, transform 120ms ease-out, filter 120ms ease-out;
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .stButton > button:hover,
         .stDownloadButton > button:hover{
-          background: #fff;
+          background: var(--surface-2);
         }
 
         .stButton > button:active,
@@ -256,32 +263,32 @@ st.markdown(
         .stButton > button:focus-visible,
         .stDownloadButton > button:focus-visible{
           outline: none;
-          border-color: rgba(47, 106, 246, 0.45);
-          box-shadow: 0 0 0 2px rgba(47, 106, 246, 0.25);
+          border-color: rgba(31, 91, 255, 0.6);
+          box-shadow: 0 0 0 2px var(--focus);
         }
 
         button[data-testid="baseButton-primary"],
         button[kind="primary"]{
           background: var(--accent) !important;
           color: #fff !important;
-          border-color: transparent !important;
+          border-color: var(--border) !important;
         }
 
         button[data-testid="baseButton-primary"]:hover,
         button[kind="primary"]:hover{
-          background: var(--accent-strong) !important;
+          filter: brightness(0.96);
         }
 
         input, textarea, select{
           border-radius: var(--radius-sm) !important;
-          border: 1px solid var(--border) !important;
-          background: #fff !important;
+          border: 2px solid var(--border) !important;
+          background: var(--surface-2) !important;
           color: var(--text) !important;
         }
 
         input:focus, textarea:focus, select:focus{
-          border-color: rgba(47, 106, 246, 0.45) !important;
-          box-shadow: 0 0 0 2px rgba(47, 106, 246, 0.25) !important;
+          border-color: rgba(31, 91, 255, 0.6) !important;
+          box-shadow: 0 0 0 2px var(--focus) !important;
         }
 
         .hero{
@@ -289,7 +296,7 @@ st.markdown(
           border-radius: var(--radius-md);
           background: var(--panel);
           color: var(--text);
-          border: 1px solid var(--border);
+          border: 2px solid var(--border);
           margin-bottom: 12px;
           box-shadow: var(--shadow-soft);
         }
@@ -313,13 +320,25 @@ st.markdown(
           padding: 4px 10px;
           border-radius: 999px;
           background: var(--accent-soft);
-          border: 1px solid rgba(47, 106, 246, 0.35);
-          color: var(--accent-strong);
+          border: 2px solid rgba(31, 91, 255, 0.45);
+          color: var(--accent);
           font-weight: 600;
           font-size: 12px;
           font-family: var(--font-mono);
           letter-spacing: var(--tracking-label);
           text-transform: uppercase;
+          min-height: 32px;
+        }
+
+        .stMarkdown,
+        .stCaption,
+        [data-testid="stMetricValue"],
+        [data-testid="stMetricLabel"]{
+          overflow-wrap: anywhere;
+        }
+
+        ::selection{
+          background: var(--accent-soft);
         }
     </style>
     """,

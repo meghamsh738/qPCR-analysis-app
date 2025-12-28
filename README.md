@@ -14,7 +14,7 @@ Status: this Streamlit app is the canonical version. A prior React/FastAPI exper
 
 ## Screenshot
 
-Example run using the bundled `sample-data/qpcr_example.csv` (select **Example** in the sidebar) and default options (refreshed Dec 28, 2025; sidebar/header contrast tuned for readability):
+Example run using the bundled `sample-data/qpcr_example.csv` (select **Example** in the sidebar) and default options (refreshed Dec 28, 2025; lab notebook neo-brutalist styling applied):
 
 ![qPCR analysis dashboard screenshot](screenshots/example_run.png)
 
