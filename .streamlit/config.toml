@@ -1,12 +1,11 @@
 [theme]
-# Modern dark lab theme
-base = "dark"
-primaryColor = "#22d3ee"
-backgroundColor = "#050814"
-secondaryBackgroundColor = "#0b1224"
-textColor = "#e8eefc"
+# Lab notebook palette (light)
+base = "light"
+primaryColor = "#2f6af6"
+backgroundColor = "#f4f6fb"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#0f172a"
 font = "sans serif"
 
 [client]
 showSidebarNavigation = false
-

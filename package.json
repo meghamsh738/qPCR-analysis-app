@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test:e2e": "playwright test"
+    "test:e2e": "node node_modules/playwright/cli.js test"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.1"
