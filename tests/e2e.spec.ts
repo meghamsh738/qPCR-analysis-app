@@ -1,31 +1,23 @@
 import { test, expect } from '@playwright/test'
-import fs from 'fs/promises'
-import path from 'path'
-import { fileURLToPath } from 'url'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-const screenshotDir = path.join(__dirname, '..', 'screenshots')
 
 async function snapSection(page, headingRegex: RegExp, filename: string) {
   const heading = page.getByRole('heading', { name: headingRegex })
   await expect(heading).toBeVisible()
   await heading.scrollIntoViewIfNeeded()
   await page.waitForTimeout(600)
-  await page.screenshot({ path: path.join(screenshotDir, filename) })
+  await expect(page).toHaveScreenshot(filename)
 }
 
 test('example workflow screenshots', async ({ page }) => {
-  await fs.mkdir(screenshotDir, { recursive: true })
-
   await page.goto('/')
+  await page.addStyleTag({ content: '* { transition: none !important; animation: none !important; }' })
   const mainHeading = page.getByTestId('stMainBlockContainer').getByRole('heading', { name: 'qPCR Analysis' })
   await expect(mainHeading).toBeVisible()
   await expect(page.getByText('Wells loaded')).toBeVisible()
 
   await page.waitForTimeout(1000)
 
-  await page.screenshot({ path: path.join(screenshotDir, 'example_run.png'), fullPage: true })
+  await expect(page).toHaveScreenshot('example_run.png', { fullPage: true })
 
   await snapSection(page, /1\)\s*Review & clean wells/i, 'overview.png')
   await snapSection(page, /2\)\s*Replicate averages/i, 'replicates.png')

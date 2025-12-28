@@ -39,21 +39,13 @@ st.markdown(
         @import url("https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap");
 
         :root{
-          --bg: #F7F7F8;
-          --surface: #FFFFFF;
-          --surface-2: #FBFBFC;
-          --text: #111113;
-          --text-2: #5E5E66;
-          --text-3: #8A8A94;
-          --border: #E7E7EA;
-          --border-2: #D7D7DD;
+          --font-display: "Chakra Petch", "Space Grotesk", system-ui, sans-serif;
+          --font-body: "Space Grotesk", "Segoe UI", system-ui, -apple-system, sans-serif;
+          --font-sans: var(--font-body);
+          --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 
-          --accent: #4F7CF7;
-          --accent-weak: rgba(79,124,247,0.14);
-          --focus: rgba(79,124,247,0.25);
-
-          --radius-sm: 10px;
-          --radius-md: 12px;
+          --tracking-display: 0.08em;
+          --tracking-label: 0.12em;
 
           --s-1: 4px;
           --s-2: 8px;
@@ -62,55 +54,94 @@ st.markdown(
           --s-5: 24px;
           --s-6: 32px;
 
-          --shadow-1: 0 1px 2px rgba(0,0,0,0.06);
+          --radius-sm: 10px;
+          --radius-md: 14px;
+          --radius-lg: 18px;
 
-          --font-display: "Chakra Petch", "Space Grotesk", system-ui, sans-serif;
-          --font-body: "Space Grotesk", system-ui, sans-serif;
-          --font-sans: var(--font-body);
-          --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+          --bg: #F4F6FB;
+          --panel: #FFFFFF;
+          --surface: var(--panel);
+          --surface-2: #F7F8FC;
+          --surface-3: #EEF2F7;
+          --text: #0F172A;
+          --text-2: #344054;
+          --text-3: #5B6B85;
+          --border: rgba(15,23,42,0.12);
+          --border-2: rgba(15,23,42,0.2);
 
-          --tracking-display: 0.06em;
-          --tracking-label: 0.12em;
+          --accent: #2F6AF6;
+          --accent-strong: #1D4ED8;
+          --accent-weak: rgba(47,106,246,0.14);
+          --accent-soft: rgba(47,106,246,0.14);
+          --focus: rgba(47,106,246,0.35);
+
+          --shadow: 0 20px 50px rgba(15,23,42,0.12);
+          --shadow-soft: 0 10px 24px rgba(15,23,42,0.08);
+          --shadow-1: var(--shadow-soft);
+
+          --app-gradient: radial-gradient(circle at 12% 10%, rgba(47,106,246,0.12), transparent 45%),
+            radial-gradient(circle at 92% 0%, rgba(18,183,106,0.12), transparent 40%),
+            linear-gradient(180deg, #F8FAFC 0%, #EEF2F8 100%);
         }
 
         @media (prefers-color-scheme: dark){
           :root:not([data-theme="light"]){
-            --bg: #0B0B0C;
-            --surface: #141417;
-            --surface-2: #101012;
-            --text: #F1F1F3;
-            --text-2: #B7B7BF;
-            --text-3: #8F8F99;
-            --border: #232326;
-            --border-2: #2F2F35;
+            --bg: #0C111C;
+            --panel: #151B26;
+            --surface: var(--panel);
+            --surface-2: #1C2331;
+            --surface-3: #232C3D;
+            --text: #F8FAFC;
+            --text-2: #CBD5F1;
+            --text-3: #94A3B8;
+            --border: rgba(148,163,184,0.2);
+            --border-2: rgba(148,163,184,0.34);
 
-            --accent-weak: rgba(79,124,247,0.18);
-            --focus: rgba(79,124,247,0.30);
-            --shadow-1: 0 1px 2px rgba(0,0,0,0.35);
+            --accent-weak: rgba(47,106,246,0.2);
+            --accent-soft: rgba(47,106,246,0.2);
+            --focus: rgba(47,106,246,0.5);
+
+            --shadow: 0 20px 50px rgba(0,0,0,0.45);
+            --shadow-soft: 0 10px 24px rgba(0,0,0,0.35);
+            --shadow-1: var(--shadow-soft);
+
+            --app-gradient: radial-gradient(circle at 12% 10%, rgba(47,106,246,0.18), transparent 45%),
+              radial-gradient(circle at 92% 0%, rgba(18,183,106,0.16), transparent 40%),
+              linear-gradient(180deg, #0B1020 0%, #0A0F1A 100%);
 
             color-scheme: dark;
           }
         }
 
         [data-theme="dark"]{
-          --bg: #0B0B0C;
-          --surface: #141417;
-          --surface-2: #101012;
-          --text: #F1F1F3;
-          --text-2: #B7B7BF;
-          --text-3: #8F8F99;
-          --border: #232326;
-          --border-2: #2F2F35;
+          --bg: #0C111C;
+          --panel: #151B26;
+          --surface: var(--panel);
+          --surface-2: #1C2331;
+          --surface-3: #232C3D;
+          --text: #F8FAFC;
+          --text-2: #CBD5F1;
+          --text-3: #94A3B8;
+          --border: rgba(148,163,184,0.2);
+          --border-2: rgba(148,163,184,0.34);
 
-          --accent-weak: rgba(79,124,247,0.18);
-          --focus: rgba(79,124,247,0.30);
-          --shadow-1: 0 1px 2px rgba(0,0,0,0.35);
+          --accent-weak: rgba(47,106,246,0.2);
+          --accent-soft: rgba(47,106,246,0.2);
+          --focus: rgba(47,106,246,0.5);
+
+          --shadow: 0 20px 50px rgba(0,0,0,0.45);
+          --shadow-soft: 0 10px 24px rgba(0,0,0,0.35);
+          --shadow-1: var(--shadow-soft);
+
+          --app-gradient: radial-gradient(circle at 12% 10%, rgba(47,106,246,0.18), transparent 45%),
+            radial-gradient(circle at 92% 0%, rgba(18,183,106,0.16), transparent 40%),
+            linear-gradient(180deg, #0B1020 0%, #0A0F1A 100%);
 
           color-scheme: dark;
         }
 
         html, body, [data-testid="stAppViewContainer"]{
-          background: var(--bg);
+          background: var(--app-gradient);
           color: var(--text);
           font-family: var(--font-sans);
           font-weight: 500;
@@ -232,7 +263,7 @@ st.markdown(
           background: var(--surface);
           color: var(--text);
           font-weight: 500;
-          transition: background-color 140ms ease-out, border-color 140ms ease-out, box-shadow 140ms ease-out, transform 140ms ease-out, filter 140ms ease-out;
+          transition: background-color 120ms ease-out, border-color 120ms ease-out, box-shadow 120ms ease-out, transform 120ms ease-out, filter 120ms ease-out;
         }
 
         .stButton > button:hover{
@@ -268,6 +299,7 @@ st.markdown(
           color: var(--text);
           border: 1px solid var(--border);
           margin-bottom: 12px;
+          box-shadow: var(--shadow-soft);
         }
 
         .hero h4{
