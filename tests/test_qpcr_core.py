@@ -65,3 +65,21 @@ def test_mark_outliers_flags_large_deltas():
     out = mark_outliers(df, threshold=2.0)
 
     assert out["Outlier"].tolist() == [False, False, True]
+
+
+def test_coerce_columns_normalizes_type_and_infers():
+    raw = pd.DataFrame(
+        {
+            "Plate": ["Plate 1"] * 4,
+            "Well": ["A1", "A2", "A3", "A4"],
+            "Gene": ["g1"] * 4,
+            "Type": ["Std", "Standard curve", "Unknown", ""],
+            "Label": ["Std1", "Std2", "SampleA", "Std3"],
+            "Replicate": [1, 1, 1, 1],
+            "Cq": [18.0, 19.0, 20.0, 21.0],
+        }
+    )
+
+    out = coerce_columns(raw)
+
+    assert out["Type"].tolist() == ["Standard", "Standard", "Sample", "Standard"]

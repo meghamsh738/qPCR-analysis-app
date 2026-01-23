@@ -11,6 +11,11 @@ VALID_COLS = ["Plate", "Well", "Gene", "Type", "Label", "Replicate", "Cq"]
 DEFAULT_TOP_CONC = 1000.0
 DEFAULT_DILUTION_FACTOR = 4.0
 PLOT_BG = "#0b1224"
+STANDARD_RE = re.compile(r"(?:^|\b)(std\d*|standard|curve|calib|calibrator)(?:\b|$)", re.IGNORECASE)
+SAMPLE_RE = re.compile(r"(?:^|\b)(sample|unknown|unk)(?:\b|$)", re.IGNORECASE)
+NEGATIVE_RE = re.compile(r"(?:^|\b)(ntc|no\s*template|negative|neg)(?:\b|$)", re.IGNORECASE)
+POSITIVE_RE = re.compile(r"(?:^|\b)(positive|pos)(?:\b|$)", re.IGNORECASE)
+BLANK_RE = re.compile(r"(?:^|\b)(blank|water)(?:\b|$)", re.IGNORECASE)
 
 
 def _to_num(x):
@@ -77,6 +82,38 @@ def _best_numeric_column_as_cq(df: pd.DataFrame):
     return candidates[-1][0] if candidates[-1][1] > 0 else None
 
 
+def _normalize_type_value(val: str) -> str:
+    if val is None:
+        return ""
+    s = str(val).strip()
+    if not s or s.lower() in {"nan", "none", "na"}:
+        return ""
+    if STANDARD_RE.search(s):
+        return "Standard"
+    if SAMPLE_RE.search(s):
+        return "Sample"
+    if NEGATIVE_RE.search(s):
+        return "Negative"
+    if POSITIVE_RE.search(s):
+        return "Positive"
+    if BLANK_RE.search(s):
+        return "Blank"
+    return s
+
+
+def _infer_type_from_label(label: str) -> str:
+    if label is None:
+        return ""
+    s = str(label).strip()
+    if not s or s.lower() in {"nan", "none", "na"}:
+        return ""
+    if STANDARD_RE.search(s):
+        return "Standard"
+    if NEGATIVE_RE.search(s) or BLANK_RE.search(s):
+        return "Blank"
+    return ""
+
+
 def coerce_columns(df: pd.DataFrame) -> pd.DataFrame:
     # Flexible renaming
     rename = {}
@@ -118,6 +155,11 @@ def coerce_columns(df: pd.DataFrame) -> pd.DataFrame:
     df["Replicate"] = df["Replicate"].apply(_to_int)
     for col in ["Plate", "Well", "Gene", "Type", "Label"]:
         df[col] = df[col].astype(str).str.strip()
+
+    df["Type"] = df["Type"].apply(_normalize_type_value)
+    inferred = df["Label"].apply(_infer_type_from_label)
+    df.loc[df["Type"] == "", "Type"] = inferred
+    df.loc[df["Type"] == "", "Type"] = "Sample"
 
     return df
 
