@@ -1,12 +1,72 @@
 {
-  "name": "qpcr-analysis-app",
-  "private": true,
+  "name": "easylab-qpcr-analysis",
   "version": "0.1.0",
-  "type": "module",
+  "description": "Easylab qPCR analysis desktop app",
+  "author": "Meghamsh Teja",
+  "private": true,
+  "main": "desktop/electron/main.cjs",
   "scripts": {
-    "test:e2e": "node node_modules/playwright/cli.js test"
+    "test:e2e": "node node_modules/playwright/cli.js test",
+    "screenshots": "node node_modules/playwright/cli.js test",
+    "icons": "node desktop/scripts/generate-icons.mjs",
+    "dev:electron": "electron .",
+    "build:electron": "npm run icons && electron-builder --win --x64"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.1"
+    "@playwright/test": "^1.49.1",
+    "electron": "^30.0.0",
+    "electron-builder": "^25.1.8",
+    "png-to-ico": "^2.1.0",
+    "sharp": "^0.33.5"
+  },
+  "build": {
+    "appId": "com.meghamshteja.easylab.qpcranalysis",
+    "productName": "Easylab qPCR Analysis",
+    "copyright": "Copyright © 2026 Meghamsh Teja. All Rights Reserved.",
+    "directories": {
+      "buildResources": "desktop/build",
+      "output": "desktop/dist"
+    },
+    "files": [
+      "desktop/electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "app.py",
+        "to": "app.py"
+      },
+      {
+        "from": "qpcr_core.py",
+        "to": "qpcr_core.py"
+      },
+      {
+        "from": "sample-data",
+        "to": "sample-data"
+      },
+      {
+        "from": "mock_wells.csv",
+        "to": "mock_wells.csv"
+      },
+      {
+        "from": "requirements.txt",
+        "to": "requirements.txt"
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "desktop/build/icon.ico",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "license": "LICENSE"
+    }
   }
 }

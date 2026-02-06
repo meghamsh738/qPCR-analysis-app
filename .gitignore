@@ -13,6 +13,7 @@ frontend/dist/
 node_modules/
 test-results/
 playwright-report/
+desktop/dist/
 
 # Editors
 .idea/

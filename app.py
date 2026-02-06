@@ -5,6 +5,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import re
+import json
+import os
 from pathlib import Path
 from datetime import datetime
 
@@ -27,6 +29,40 @@ from qpcr_core import (
     _serial_dilution,
     make_std_curve_figure,
 )
+
+SETTINGS_PATH = Path.home() / ".easylab" / "qpcr-analysis" / "settings.json"
+PATH_FIELDS = [
+    ("data_path", "Data folder", "Saved calculations, cached state, and metadata."),
+    ("attachments_path", "Attachments folder", "Files generated or stored with this workspace."),
+    ("exports_path", "Exports folder", "CSV / Excel export destination."),
+    ("sync_path", "Sync folder", "Optional sync target for backups."),
+]
+
+def default_paths():
+    base = Path.home() / "Documents" / "Easylab" / "qPCR Analysis"
+    return {
+        "data_path": str(base / "data"),
+        "attachments_path": str(base / "attachments"),
+        "exports_path": str(base / "exports"),
+        "sync_path": str(base / "sync"),
+    }
+
+def load_settings():
+    if SETTINGS_PATH.exists():
+        try:
+            return json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+def save_settings(paths):
+    SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    SETTINGS_PATH.write_text(json.dumps(paths, indent=2), encoding="utf-8")
+
+def ensure_paths(paths):
+    for key, value in paths.items():
+        if value:
+            Path(value).mkdir(parents=True, exist_ok=True)
 
 APP_DIR = Path(__file__).resolve().parent
 EXAMPLE_WELLS_PATH = APP_DIR / "sample-data" / "qpcr_example.csv"
@@ -340,14 +376,200 @@ st.markdown(
         ::selection{
           background: var(--accent-soft);
         }
+
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideInLeft {
+          from { opacity: 0; transform: translateX(-10px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+
+        [data-testid="stSidebar"]{
+          animation: slideInLeft 240ms ease-out;
+        }
+
+        div[data-testid="stAlert"]{
+          animation: fadeUp 240ms ease-out;
+        }
+
+        .setup-card{
+          background: var(--panel);
+          border: 2px solid var(--border);
+          border-radius: var(--radius-lg);
+          padding: 24px;
+          box-shadow: var(--shadow);
+          animation: fadeUp 240ms ease-out;
+          margin-bottom: 18px;
+        }
+
+        .setup-grid{
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .setup-message{
+          border: 2px dashed var(--border);
+          border-radius: var(--radius-md);
+          padding: 12px 14px;
+          background: var(--surface-2);
+          color: var(--text-subtle);
+          margin-top: 12px;
+        }
+
+        .setup-message.error{
+          border-style: solid;
+          border-color: rgba(245, 158, 11, 0.45);
+          background: var(--warning-soft);
+          color: var(--text);
+        }
+
+        .setup-actions{
+          display: flex;
+          gap: 10px;
+          justify-content: flex-end;
+          flex-wrap: wrap;
+          margin-top: 16px;
+        }
+
+        @media (max-width: 960px){
+          .setup-grid{
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce){
+          *{
+            animation-duration: 0s !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0s !important;
+            scroll-behavior: auto !important;
+          }
+        }
+
+        .signature{
+          margin: 26px 0 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          font-size: 12px;
+          letter-spacing: 0.04em;
+          color: var(--muted);
+        }
+
+        .signature .sig-primary{
+          font-weight: 600;
+          color: var(--text);
+        }
+
+        .signature .sig-dot{
+          width: 4px;
+          height: 4px;
+          border-radius: 999px;
+          background: var(--muted);
+        }
+
+        .signature .sig-link{
+          color: inherit;
+          text-decoration: none;
+          border-bottom: 1px dashed rgba(15, 23, 42, 0.35);
+          padding-bottom: 2px;
+        }
+
+        .signature .sig-link:hover{
+          color: var(--text);
+          border-bottom-color: var(--accent);
+        }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
+# ------------- Setup state -------------
+stored_settings = load_settings()
+defaults = default_paths()
+
+if "paths_initialized" not in st.session_state:
+    for key, _, _ in PATH_FIELDS:
+        st.session_state[key] = stored_settings.get(key, defaults.get(key, ""))
+    st.session_state.paths_initialized = True
+    st.session_state.setup_done = bool(stored_settings)
+
+def current_paths():
+    return {key: st.session_state.get(key, "").strip() for key, _, _ in PATH_FIELDS}
+
+def apply_paths(paths):
+    ensure_paths(paths)
+    save_settings(paths)
+
+if os.environ.get("E2E") == "1" and not st.session_state.get("setup_done"):
+    try:
+        apply_paths(defaults)
+        st.session_state.setup_done = True
+    except Exception:
+        pass
+
+# ------------- UI -------------
+if not st.session_state.get("setup_done"):
+    st.markdown("## First-run setup")
+    st.markdown("Choose where qPCR Analysis stores data, attachments, exports, and sync content. These can be changed later in Settings.")
+
+    with st.form("setup_form"):
+        cols = st.columns(2)
+        for idx, (key, label, helper) in enumerate(PATH_FIELDS):
+            with cols[idx % 2]:
+                st.text_input(label, key=key)
+                st.caption(helper)
+
+        error_message = st.session_state.get("setup_error", "")
+        if error_message:
+            st.markdown(f"<div class='setup-message error'>{error_message}</div>", unsafe_allow_html=True)
+
+        use_defaults = st.form_submit_button("Use defaults")
+        finish = st.form_submit_button("Finish setup")
+
+    if use_defaults:
+        for key, _, _ in PATH_FIELDS:
+            st.session_state[key] = defaults.get(key, "")
+        st.experimental_rerun()
+
+    if finish:
+        paths = current_paths()
+        missing = [label for key, label, _ in PATH_FIELDS if not paths.get(key)]
+        if missing:
+            st.session_state.setup_error = "Please fill all paths before finishing setup."
+            st.experimental_rerun()
+        try:
+            apply_paths(paths)
+            st.session_state.setup_done = True
+            st.session_state.setup_error = ""
+            st.experimental_rerun()
+        except Exception as exc:
+            st.session_state.setup_error = f"Unable to create folders: {exc}"
+            st.experimental_rerun()
+
+    st.stop()
+
 # ------------- UI -------------
 st.sidebar.title("qPCR Analysis")
 st.sidebar.caption("Load example wells, upload a file, or paste a table.")
+
+with st.sidebar.expander("Settings", expanded=False):
+    st.markdown("**Storage paths**")
+    for key, label, helper in PATH_FIELDS:
+        st.text_input(label, key=key)
+        st.caption(helper)
+    if st.button("Save settings"):
+        try:
+            apply_paths(current_paths())
+            st.success("Settings saved and folders created.")
+        except Exception as exc:
+            st.error(f"Unable to save settings: {exc}")
+    st.caption("License: All Rights Reserved.")
 
 input_mode = st.sidebar.radio("Input source", ["Example (sample-data/qpcr_example.csv)", "Upload file", "Paste table"], index=0)
 
@@ -646,3 +868,14 @@ st.download_button(
 )
 
 st.success("Done. Paste/upload → clean → averages → fit → quantify → normalize → export.")
+
+st.markdown(
+    """
+    <div class="signature">
+      <span class="sig-primary">Made by Meghamsh Teja Konda</span>
+      <span class="sig-dot" aria-hidden="true"></span>
+      <a class="sig-link" href="mailto:meghamshteja555@gmail.com">meghamshteja555@gmail.com</a>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)

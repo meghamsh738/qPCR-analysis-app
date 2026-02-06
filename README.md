@@ -2,6 +2,10 @@
 
 Streamlit dashboard for quickly reviewing qPCR plates end-to-end – from pasted wells tables through replicate QC, standard curve fitting, absolute quantity estimation, ΔΔCt normalisation, and Excel export. The app is designed to work directly from the tables produced by most qPCR instruments, so you can validate a run without pre-processing in spreadsheets.
 
+Part of **Easylab Suite**: when bundled, it launches from the suite desktop launcher as the **qPCR Analysis** module.
+
+License: All Rights Reserved.
+
 Status: this Streamlit app is the canonical version. A prior React/FastAPI experiment that lacked chart export has been removed to keep the repo lean.
 
 ## Highlights
@@ -51,6 +55,20 @@ npm run test:e2e
    streamlit run app.py
    ```
 4. Streamlit prints a local URL (typically http://localhost:8501). Open it in your browser.
+
+## Desktop Installer (Windows)
+From the repo root (next to this README):
+
+```bash
+npm install
+npm run build:electron
+```
+
+The installer is generated in `desktop/dist/` as an `.exe` (NSIS). On first run, the app asks for storage folders and creates them for you.
+
+Notes:
+- The packaged app expects Python 3.10+ available on PATH to run the Streamlit server. You can set `APP_PYTHON_PATH` to a specific Python executable if needed.
+- The installer is unsigned unless code-signing credentials are configured.
 
 ## Using the Dashboard
 1. **Input:** Choose **Example**, **Upload file**, or **Paste table** in the sidebar. Example loads `sample-data/qpcr_example.csv`.

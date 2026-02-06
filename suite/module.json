@@ -1,0 +1,20 @@
+{
+  "id": "qpcr-analysis",
+  "name": "qPCR Analysis",
+  "repoName": "qPCR-analysis-app",
+  "type": "streamlit",
+  "defaultPort": 8501,
+  "backend": {
+    "kind": "streamlit",
+    "root": ".",
+    "entry": "app.py"
+  },
+  "storage": {
+    "label": "qPCR Analysis"
+  },
+  "signature": {
+    "madeBy": "Meghamsh Teja Konda",
+    "contactEmail": "meghamshteja555@gmail.com"
+  }
+}
+

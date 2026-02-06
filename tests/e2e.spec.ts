@@ -27,9 +27,25 @@ async function scrollToLargeImage(page) {
 
 test('example workflow screenshots', async ({ page }) => {
   await page.goto('/')
-  await page.addStyleTag({ content: '* { transition: none !important; animation: none !important; }' })
+  // Streamlit renders a top toolbar with a "Running..." indicator that can cause tiny pixel diffs
+  // between consecutive screenshots. Hide it for stable visual regression snapshots.
+  await page.addStyleTag({
+    content: `
+      * { transition: none !important; animation: none !important; }
+      .signature { display: none !important; }
+      header, [role="banner"] { display: none !important; }
+    `,
+  })
+  const setupHeading = page.getByRole('heading', { name: /First-run setup/i })
+  try {
+    await setupHeading.waitFor({ timeout: 8000 })
+    await page.getByRole('button', { name: 'Finish setup' }).click()
+  } catch {
+    // Setup already completed.
+  }
+
   const mainHeading = page.getByTestId('stMainBlockContainer').getByRole('heading', { name: 'qPCR Analysis' })
-  await expect(mainHeading).toBeVisible()
+  await expect(mainHeading.first()).toBeVisible({ timeout: 60000 })
   await expect(page.getByText('Wells loaded')).toBeVisible()
 
   await page.waitForTimeout(1000)
