@@ -7,6 +7,7 @@ import numpy as np
 import re
 import json
 import os
+import base64
 from pathlib import Path
 from datetime import datetime
 
@@ -65,14 +66,60 @@ def ensure_paths(paths):
             Path(value).mkdir(parents=True, exist_ok=True)
 
 APP_DIR = Path(__file__).resolve().parent
+FONT_DIR = APP_DIR / "assets" / "fonts"
 EXAMPLE_WELLS_PATH = APP_DIR / "sample-data" / "qpcr_example.csv"
 
 st.set_page_config(page_title="qPCR Analysis", page_icon="🧬", layout="centered")
 
+def _font_data_uri(filename: str) -> str:
+    try:
+        raw = (FONT_DIR / filename).read_bytes()
+    except Exception:
+        return ""
+    return "data:font/ttf;base64," + base64.b64encode(raw).decode("ascii")
+
+_space_grotesk = _font_data_uri("SpaceGrotesk-VariableFont_wght.ttf")
+_space_mono_regular = _font_data_uri("SpaceMono-Regular.ttf")
+_space_mono_bold = _font_data_uri("SpaceMono-Bold.ttf")
+
+_font_faces = ""
+if _space_grotesk:
+    _font_faces += f"""
+        @font-face {{
+          font-family: "Space Grotesk";
+          font-style: normal;
+          font-weight: 400 700;
+          font-display: swap;
+          src: url("{_space_grotesk}") format("truetype");
+        }}
+    """
+if _space_mono_regular:
+    _font_faces += f"""
+        @font-face {{
+          font-family: "Space Mono";
+          font-style: normal;
+          font-weight: 400;
+          font-display: swap;
+          src: url("{_space_mono_regular}") format("truetype");
+        }}
+    """
+if _space_mono_bold:
+    _font_faces += f"""
+        @font-face {{
+          font-family: "Space Mono";
+          font-style: normal;
+          font-weight: 700;
+          font-display: swap;
+          src: url("{_space_mono_bold}") format("truetype");
+        }}
+    """
+
 st.markdown(
     """
     <style>
-        @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap");
+"""
+    + _font_faces
+    + """
 
         :root{
           --font-display: "Space Grotesk", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
