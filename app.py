@@ -506,38 +506,88 @@ def apply_paths(paths):
 TUTORIAL_STEPS = [
     {
         "id": "input",
-        "title": "Choose input source",
-        "description": "In the sidebar, load the example, upload your file, or paste a table.",
+        "title": "Input source",
+        "description": "Choose Example, Upload file, or Paste table in the sidebar.",
+    },
+    {
+        "id": "input",
+        "title": "Outlier ΔCq threshold",
+        "description": "This sidebar threshold flags replicate disagreement in the clean-wells table.",
+    },
+    {
+        "id": "input",
+        "title": "Fit scope",
+        "description": "Pick Gene (all plates) or Gene × Plate depending on whether plate-specific curves are needed.",
+    },
+    {
+        "id": "input",
+        "title": "Reference gene and quant mode",
+        "description": "Reference gene is used for normalization. Quant mode switches between Absolute and ΔΔCt workflows.",
     },
     {
         "id": "mapping",
-        "title": "Map columns",
-        "description": "Confirm Label, Cq, and Replicate column mapping before cleaning.",
+        "title": "Sample label column",
+        "description": "Map the column that identifies biological sample labels.",
+    },
+    {
+        "id": "mapping",
+        "title": "Cq column",
+        "description": "Map the measurement column containing Cq/Ct values for fitting and quantification.",
+    },
+    {
+        "id": "mapping",
+        "title": "Replicate column",
+        "description": "Optional replicate-column mapping; leave none if replicates are already collapsed.",
     },
     {
         "id": "clean",
-        "title": "Review and clean wells",
-        "description": "Toggle keep/outliers and verify replicate averages before fitting.",
+        "title": "Review & clean wells",
+        "description": "Use keep checkboxes to exclude bad wells before averaging and fitting.",
+    },
+    {
+        "id": "clean",
+        "title": "Replicate averages",
+        "description": "Validate replicate means/SD before proceeding to standards fitting.",
     },
     {
         "id": "standards",
-        "title": "Standards map",
-        "description": "Fill the Label → Concentration mapping for all standard levels.",
+        "title": "Label → concentration map",
+        "description": "Fill all standard concentrations. Missing concentrations block proper fitting.",
+    },
+    {
+        "id": "standards",
+        "title": "Serial dilution auto-fill",
+        "description": "Use top concentration + dilution factor + order to quickly prefill standard concentrations.",
     },
     {
         "id": "autoqc",
-        "title": "Auto-QC and curve fit",
-        "description": "Review suggestions, optionally apply exclusions, and inspect curve metrics.",
+        "title": "Auto-QC thresholds",
+        "description": "Tune R² target, min levels kept, allowed level drops, and efficiency bounds.",
+    },
+    {
+        "id": "autoqc",
+        "title": "Apply suggestions toggle",
+        "description": "Apply Auto-QC exclusions to curve fit and downstream quantities when suggestions are acceptable.",
+    },
+    {
+        "id": "autoqc",
+        "title": "Curve review",
+        "description": "Inspect slope, intercept, R², and efficiency; then view optional curve plots.",
     },
     {
         "id": "quantify",
-        "title": "Quantify and normalize",
-        "description": "Check sample quantities and reference-gene normalization outputs.",
+        "title": "Quantify samples",
+        "description": "Check computed quantities for sample wells using the selected fitted curve.",
+    },
+    {
+        "id": "quantify",
+        "title": "Normalize to reference gene",
+        "description": "Review normalized quantities and confirm the selected reference gene is present.",
     },
     {
         "id": "export",
-        "title": "Export report",
-        "description": "Download the final Excel report once the table outputs look correct.",
+        "title": "Export final report",
+        "description": "Download Excel once clean-wells, fit, quantification, and normalization outputs are validated.",
     },
 ]
 
