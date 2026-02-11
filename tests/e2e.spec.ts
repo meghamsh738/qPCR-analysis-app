@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 async function snapSection(page, headingRegex: RegExp, filename: string, scrollOffset = 0) {
+  const banner = page.getByRole('banner')
   const heading = page.getByRole('heading', { name: headingRegex })
   await expect(heading).toBeVisible()
   await heading.scrollIntoViewIfNeeded()
@@ -8,7 +9,9 @@ async function snapSection(page, headingRegex: RegExp, filename: string, scrollO
     await page.evaluate((offset) => window.scrollBy(0, offset), scrollOffset)
   }
   await page.waitForTimeout(600)
-  await expect(page).toHaveScreenshot(filename)
+  // Streamlit's top toolbar includes a "Running..." indicator that can animate and cause
+  // tiny diffs between consecutive screenshots; mask it for stable visual snapshots.
+  await expect(page).toHaveScreenshot(filename, { mask: [banner] })
 }
 
 async function scrollToLargeImage(page) {
@@ -27,15 +30,8 @@ async function scrollToLargeImage(page) {
 
 test('example workflow screenshots', async ({ page }) => {
   await page.goto('/')
-  // Streamlit renders a top toolbar with a "Running..." indicator that can cause tiny pixel diffs
-  // between consecutive screenshots. Hide it for stable visual regression snapshots.
-  await page.addStyleTag({
-    content: `
-      * { transition: none !important; animation: none !important; }
-      .signature { display: none !important; }
-      header, [role="banner"] { display: none !important; }
-    `,
-  })
+  await page.addStyleTag({ content: '* { transition: none !important; animation: none !important; }' })
+  const banner = page.getByRole('banner')
   const setupHeading = page.getByRole('heading', { name: /First-run setup/i })
   try {
     await setupHeading.waitFor({ timeout: 8000 })
@@ -48,9 +44,12 @@ test('example workflow screenshots', async ({ page }) => {
   await expect(mainHeading.first()).toBeVisible({ timeout: 60000 })
   await expect(page.getByText('Wells loaded')).toBeVisible()
 
-  await page.waitForTimeout(1000)
+  // Give Streamlit time to settle (tables render async); keep this short to avoid flakiness.
+  await page.waitForTimeout(1500)
 
-  await expect(page).toHaveScreenshot('example_run.png', { fullPage: true })
+  // Avoid fullPage screenshots here; off-screen components can still be rendering and cause
+  // subtle diffs between consecutive captures. Section snapshots below cover the full flow.
+  await expect(page).toHaveScreenshot('example_run.png', { mask: [banner] })
 
   await snapSection(page, /1\)\s*Review & clean wells/i, 'overview.png')
   await snapSection(page, /2\)\s*Replicate averages/i, 'replicates.png')

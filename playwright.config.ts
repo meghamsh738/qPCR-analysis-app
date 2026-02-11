@@ -1,5 +1,8 @@
 import { defineConfig } from '@playwright/test'
 
+const isWindows = process.platform === 'win32'
+const pythonCmd = isWindows ? 'python' : './.venv/bin/python'
+
 export default defineConfig({
   testDir: './tests',
   timeout: 120000,
@@ -16,7 +19,7 @@ export default defineConfig({
   },
   reporter: [['list']],
   webServer: {
-    command: 'E2E=1 /home/megha/.venvs/qpcr-analysis/bin/python -m streamlit run app.py --server.headless true --server.port 8501 --server.address 127.0.0.1',
+    command: `E2E=1 ${pythonCmd} -m streamlit run app.py --server.headless true --server.port 8501 --server.address 127.0.0.1`,
     url: 'http://127.0.0.1:8501',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,

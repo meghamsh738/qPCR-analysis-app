@@ -2,8 +2,6 @@
 
 Streamlit dashboard for quickly reviewing qPCR plates end-to-end – from pasted wells tables through replicate QC, standard curve fitting, absolute quantity estimation, ΔΔCt normalisation, and Excel export. The app is designed to work directly from the tables produced by most qPCR instruments, so you can validate a run without pre-processing in spreadsheets.
 
-Part of **Easylab Suite**: when bundled, it launches from the suite desktop launcher as the **qPCR Analysis** module.
-
 License: All Rights Reserved.
 
 Status: this Streamlit app is the canonical version. A prior React/FastAPI experiment that lacked chart export has been removed to keep the repo lean.

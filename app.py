@@ -7,7 +7,6 @@ import numpy as np
 import re
 import json
 import os
-import base64
 from pathlib import Path
 from datetime import datetime
 
@@ -20,6 +19,7 @@ from qpcr_core import (
     _best_numeric_column_as_cq,
     coerce_columns,
     fit_standard_curve,
+    suggest_standard_curve_exclusions,
     quantify_samples,
     mark_outliers,
     replicate_stats,
@@ -66,60 +66,14 @@ def ensure_paths(paths):
             Path(value).mkdir(parents=True, exist_ok=True)
 
 APP_DIR = Path(__file__).resolve().parent
-FONT_DIR = APP_DIR / "assets" / "fonts"
 EXAMPLE_WELLS_PATH = APP_DIR / "sample-data" / "qpcr_example.csv"
 
 st.set_page_config(page_title="qPCR Analysis", page_icon="🧬", layout="centered")
 
-def _font_data_uri(filename: str) -> str:
-    try:
-        raw = (FONT_DIR / filename).read_bytes()
-    except Exception:
-        return ""
-    return "data:font/ttf;base64," + base64.b64encode(raw).decode("ascii")
-
-_space_grotesk = _font_data_uri("SpaceGrotesk-VariableFont_wght.ttf")
-_space_mono_regular = _font_data_uri("SpaceMono-Regular.ttf")
-_space_mono_bold = _font_data_uri("SpaceMono-Bold.ttf")
-
-_font_faces = ""
-if _space_grotesk:
-    _font_faces += f"""
-        @font-face {{
-          font-family: "Space Grotesk";
-          font-style: normal;
-          font-weight: 400 700;
-          font-display: swap;
-          src: url("{_space_grotesk}") format("truetype");
-        }}
-    """
-if _space_mono_regular:
-    _font_faces += f"""
-        @font-face {{
-          font-family: "Space Mono";
-          font-style: normal;
-          font-weight: 400;
-          font-display: swap;
-          src: url("{_space_mono_regular}") format("truetype");
-        }}
-    """
-if _space_mono_bold:
-    _font_faces += f"""
-        @font-face {{
-          font-family: "Space Mono";
-          font-style: normal;
-          font-weight: 700;
-          font-display: swap;
-          src: url("{_space_mono_bold}") format("truetype");
-        }}
-    """
-
 st.markdown(
     """
     <style>
-"""
-    + _font_faces
-    + """
+        @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap");
 
         :root{
           --font-display: "Space Grotesk", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
@@ -496,41 +450,6 @@ st.markdown(
             scroll-behavior: auto !important;
           }
         }
-
-        .signature{
-          margin: 26px 0 18px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          font-size: 12px;
-          letter-spacing: 0.04em;
-          color: var(--muted);
-        }
-
-        .signature .sig-primary{
-          font-weight: 600;
-          color: var(--text);
-        }
-
-        .signature .sig-dot{
-          width: 4px;
-          height: 4px;
-          border-radius: 999px;
-          background: var(--muted);
-        }
-
-        .signature .sig-link{
-          color: inherit;
-          text-decoration: none;
-          border-bottom: 1px dashed rgba(15, 23, 42, 0.35);
-          padding-bottom: 2px;
-        }
-
-        .signature .sig-link:hover{
-          color: var(--text);
-          border-bottom-color: var(--accent);
-        }
     </style>
     """,
     unsafe_allow_html=True,
@@ -643,6 +562,8 @@ quant_mode = st.sidebar.radio(
     horizontal=True,
     help="Absolute uses standard curves; ΔΔCt uses 2^-ΔΔCt relative expression."
 )
+if quant_mode != "Absolute (std curve)":
+    st.info("Standard-curve fitting and Auto-QC are shown only in `Absolute (std curve)` mode.")
 
 st.title("qPCR Analysis")
 st.markdown(
@@ -794,7 +715,123 @@ if quant_mode == "Absolute (std curve)":
     else:
         std_input = collapsed_df[(collapsed_df["Type"].str.lower()=="standard") & (collapsed_df["keep"])].copy()
 
-    curves_df, std_points = fit_standard_curve(std_input, map_df)
+    # Auto-QC: suggest replicate/level exclusions to improve curve fit (no data is deleted unless toggled).
+    std_labels_for_qc = (
+        std_input.merge(map_df.dropna(subset=["Label", "Concentration"]), on="Label", how="inner")["Label"]
+        .dropna()
+        .astype(str)
+        .unique()
+        .tolist()
+    )
+    default_min_levels_keep = max(2, min(6, len(std_labels_for_qc))) if std_labels_for_qc else 2
+
+    with st.expander("Auto-QC details (review suggestions + tweak thresholds)", expanded=True):
+        st.caption("Defaults are conservative: prefer fewer exclusions, keep at least 6 standard levels when available.")
+        c1, c2, c3 = st.columns(3)
+        qc_min_levels = c1.number_input("Min levels to keep", min_value=2, max_value=20, value=int(default_min_levels_keep), step=1)
+        qc_max_drop_levels = c2.number_input("Max levels to drop", min_value=0, max_value=5, value=1, step=1)
+        qc_r2_target = c3.number_input("R² target", min_value=0.0, max_value=0.999, value=0.98, step=0.001, format="%.3f")
+        m1, m2 = st.columns(2)
+        qc_objective_ui = m1.selectbox(
+            "Auto-QC objective",
+            [
+                "Balanced (targets + minimal drops)",
+                "Maximize R² (aggressive)",
+            ],
+            index=0,
+            help="Balanced prioritizes meeting R²/efficiency targets with minimal exclusions. Maximize R² searches for the strongest linearity, then breaks ties by fewer drops.",
+        )
+        qc_rep_mode_ui = m2.selectbox(
+            "Replicate drop candidates",
+            [
+                "Only outlier-like replicates",
+                "Any single replicate per level",
+            ],
+            index=0,
+            help="Outlier-like uses the ΔCq threshold below. Any single replicate per level is more aggressive and can improve R² when differences are subtle.",
+        )
+        qc_std_rep_thresh = st.slider(
+            "Std replicate disagreement ΔCq threshold (Auto-QC)",
+            min_value=0.1,
+            max_value=3.0,
+            value=float(outlier_thresh),
+            step=0.05,
+            help="Used only for Auto-QC replicate dropping within standards. This is independent of the sidebar Outlier ΔCq threshold (which only flags wells).",
+        )
+        e1, e2 = st.columns(2)
+        qc_eff_min = e1.number_input("Efficiency min (%)", min_value=0.0, max_value=200.0, value=90.0, step=1.0, format="%.1f")
+        qc_eff_max = e2.number_input("Efficiency max (%)", min_value=0.0, max_value=200.0, value=110.0, step=1.0, format="%.1f")
+        qc_objective = "best_r2" if qc_objective_ui.startswith("Maximize") else "balanced"
+        qc_rep_mode = "any_single_replicate" if qc_rep_mode_ui.startswith("Any single") else "outlier_only"
+
+        qc_exclusions, qc_summary = suggest_standard_curve_exclusions(
+            std_input,
+            map_df,
+            outlier_threshold=float(qc_std_rep_thresh),
+            min_levels_to_keep=int(qc_min_levels),
+            max_levels_to_drop=int(qc_max_drop_levels),
+            r2_target=float(qc_r2_target),
+            eff_min=float(qc_eff_min),
+            eff_max=float(qc_eff_max),
+            optimize_for=qc_objective,
+            replicate_drop_mode=qc_rep_mode,
+        )
+        if qc_exclusions.empty:
+            st.info("Auto-QC: no exclusions suggested for the current standards.")
+        else:
+            st.caption("Suggested curve metrics (baseline vs Auto-QC):")
+            st.dataframe(qc_summary, width="stretch", height=220)
+            st.caption("Suggested excluded wells (review before enabling Auto-QC):")
+            st.dataframe(qc_exclusions, width="stretch", height=260)
+
+    # Keep variables defined even if the expander stays collapsed in the UI.
+    if "qc_exclusions" not in locals():
+        qc_exclusions = pd.DataFrame()
+
+    if qc_exclusions.empty:
+        st.caption("Auto-QC: no exclusions suggested for the current standards.")
+    else:
+        st.caption(f"Auto-QC suggests excluding {qc_exclusions.shape[0]} standard wells. Open Auto-QC details to review.")
+
+    if "auto_qc_apply_toggle" not in st.session_state:
+        st.session_state["auto_qc_apply_toggle"] = False
+
+    apply_col, reset_col, toggle_col = st.columns([1.2, 1.2, 2.6])
+    apply_clicked = apply_col.button(
+        "Apply suggestions",
+        type="primary",
+        disabled=qc_exclusions.empty,
+        help="Apply the current Auto-QC suggestions to curve fitting and downstream calculations.",
+    )
+    reset_clicked = reset_col.button(
+        "Use all kept standards",
+        help="Disable Auto-QC exclusions and fit using all currently kept standard wells.",
+    )
+    if apply_clicked and not qc_exclusions.empty:
+        st.session_state["auto_qc_apply_toggle"] = True
+    if reset_clicked:
+        st.session_state["auto_qc_apply_toggle"] = False
+
+    use_auto_qc = toggle_col.toggle(
+        "Apply Auto-QC exclusions to fit + downstream calculations",
+        key="auto_qc_apply_toggle",
+        help="When enabled, suggested exclusions are removed before fitting standard curves and all downstream quantities.",
+    )
+    if use_auto_qc and qc_exclusions.empty:
+        st.warning("Auto-QC apply is enabled, but there are no suggested exclusions for the current settings.")
+    elif use_auto_qc:
+        st.success(f"Auto-QC applied: excluding {qc_exclusions.shape[0]} suggested standard well(s).")
+    else:
+        st.caption("Auto-QC not applied: using all kept standard wells for curve fitting.")
+
+    std_fit_input = std_input
+    if use_auto_qc and (not qc_exclusions.empty):
+        drop_keys = qc_exclusions[["Gene", "Label", "Plate", "Well"]].drop_duplicates().copy()
+        drop_keys["_drop"] = True
+        merged = std_fit_input.merge(drop_keys, on=["Gene", "Label", "Plate", "Well"], how="left")
+        std_fit_input = merged[merged["_drop"].isna()].drop(columns=["_drop"])
+
+    curves_df, std_points = fit_standard_curve(std_fit_input, map_df)
     st.dataframe(curves_df, width="stretch", height=260)
 
     if curves_df.empty:
@@ -915,14 +952,3 @@ st.download_button(
 )
 
 st.success("Done. Paste/upload → clean → averages → fit → quantify → normalize → export.")
-
-st.markdown(
-    """
-    <div class="signature">
-      <span class="sig-primary">Made by Meghamsh Teja Konda</span>
-      <span class="sig-dot" aria-hidden="true"></span>
-      <a class="sig-link" href="mailto:meghamshteja555@gmail.com">meghamshteja555@gmail.com</a>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
