@@ -436,6 +436,37 @@ st.markdown(
           margin-top: 16px;
         }
 
+        .tutorial-panel{
+          border: 2px solid var(--border);
+          border-radius: var(--radius-md);
+          background: var(--surface-2);
+          padding: 10px 12px;
+          margin-top: 6px;
+        }
+
+        .tutorial-panel strong{
+          display: block;
+          margin-bottom: 6px;
+          letter-spacing: var(--tracking-label);
+          text-transform: uppercase;
+          font-family: var(--font-mono);
+          font-size: 12px;
+        }
+
+        .tutorial-callout{
+          border: 2px solid rgba(31, 91, 255, 0.45);
+          border-radius: var(--radius-md);
+          background: var(--accent-soft);
+          color: var(--text);
+          padding: 10px 12px;
+          margin: 6px 0 10px 0;
+          box-shadow: var(--shadow-soft);
+        }
+
+        .tutorial-callout p{
+          margin: 0;
+        }
+
         @media (max-width: 960px){
           .setup-grid{
             grid-template-columns: 1fr;
@@ -471,6 +502,71 @@ def current_paths():
 def apply_paths(paths):
     ensure_paths(paths)
     save_settings(paths)
+
+TUTORIAL_STEPS = [
+    {
+        "id": "input",
+        "title": "Choose input source",
+        "description": "In the sidebar, load the example, upload your file, or paste a table.",
+    },
+    {
+        "id": "mapping",
+        "title": "Map columns",
+        "description": "Confirm Label, Cq, and Replicate column mapping before cleaning.",
+    },
+    {
+        "id": "clean",
+        "title": "Review and clean wells",
+        "description": "Toggle keep/outliers and verify replicate averages before fitting.",
+    },
+    {
+        "id": "standards",
+        "title": "Standards map",
+        "description": "Fill the Label → Concentration mapping for all standard levels.",
+    },
+    {
+        "id": "autoqc",
+        "title": "Auto-QC and curve fit",
+        "description": "Review suggestions, optionally apply exclusions, and inspect curve metrics.",
+    },
+    {
+        "id": "quantify",
+        "title": "Quantify and normalize",
+        "description": "Check sample quantities and reference-gene normalization outputs.",
+    },
+    {
+        "id": "export",
+        "title": "Export report",
+        "description": "Download the final Excel report once the table outputs look correct.",
+    },
+]
+
+if "tutorial_active" not in st.session_state:
+    st.session_state["tutorial_active"] = False
+if "tutorial_step_idx" not in st.session_state:
+    st.session_state["tutorial_step_idx"] = 0
+
+def _current_tutorial_step():
+    idx = int(st.session_state.get("tutorial_step_idx", 0))
+    idx = max(0, min(len(TUTORIAL_STEPS) - 1, idx))
+    return TUTORIAL_STEPS[idx]
+
+def render_tutorial_callout(step_id, *, sidebar=False):
+    if not st.session_state.get("tutorial_active"):
+        return
+    step = _current_tutorial_step()
+    if step["id"] != step_id:
+        return
+    html = (
+        "<div class='tutorial-callout'>"
+        f"<p><strong>Step {st.session_state.get('tutorial_step_idx', 0) + 1}/{len(TUTORIAL_STEPS)} · {step['title']}</strong></p>"
+        f"<p>{step['description']}</p>"
+        "</div>"
+    )
+    if sidebar:
+        st.sidebar.markdown(html, unsafe_allow_html=True)
+    else:
+        st.markdown(html, unsafe_allow_html=True)
 
 if os.environ.get("E2E") == "1" and not st.session_state.get("setup_done"):
     try:
@@ -536,6 +632,46 @@ with st.sidebar.expander("Settings", expanded=False):
         except Exception as exc:
             st.error(f"Unable to save settings: {exc}")
     st.caption("License: All Rights Reserved.")
+
+with st.sidebar.expander("Tutorial", expanded=False):
+    if not st.session_state.get("tutorial_active"):
+        st.caption("Step-by-step guidance for first-time runs.")
+        if st.button("Start tutorial", use_container_width=True):
+            st.session_state["tutorial_active"] = True
+            st.session_state["tutorial_step_idx"] = 0
+            st.experimental_rerun()
+    else:
+        step = _current_tutorial_step()
+        st.markdown(
+            (
+                "<div class='tutorial-panel'>"
+                f"<strong>Step {st.session_state.get('tutorial_step_idx', 0) + 1}/{len(TUTORIAL_STEPS)}</strong>"
+                f"{step['title']}<br/>{step['description']}"
+                "</div>"
+            ),
+            unsafe_allow_html=True,
+        )
+        c_back, c_next, c_skip = st.columns(3)
+        back = c_back.button("Back", use_container_width=True, disabled=st.session_state["tutorial_step_idx"] == 0)
+        next_label = "Finish" if st.session_state["tutorial_step_idx"] >= len(TUTORIAL_STEPS) - 1 else "Next"
+        nxt = c_next.button(next_label, use_container_width=True, type="primary")
+        skip = c_skip.button("Skip", use_container_width=True)
+        if back:
+            st.session_state["tutorial_step_idx"] = max(0, st.session_state["tutorial_step_idx"] - 1)
+            st.experimental_rerun()
+        if nxt:
+            if st.session_state["tutorial_step_idx"] >= len(TUTORIAL_STEPS) - 1:
+                st.session_state["tutorial_active"] = False
+                st.session_state["tutorial_step_idx"] = 0
+            else:
+                st.session_state["tutorial_step_idx"] += 1
+            st.experimental_rerun()
+        if skip:
+            st.session_state["tutorial_active"] = False
+            st.session_state["tutorial_step_idx"] = 0
+            st.experimental_rerun()
+
+render_tutorial_callout("input", sidebar=True)
 
 input_mode = st.sidebar.radio("Input source", ["Example (sample-data/qpcr_example.csv)", "Upload file", "Paste table"], index=0)
 
@@ -613,6 +749,7 @@ except Exception as e:
 
 # Column mapping UI (allows manual selection of label/Cq/replicate headers)
 st.sidebar.markdown("---")
+render_tutorial_callout("mapping", sidebar=True)
 st.sidebar.subheader("Column mapping")
 
 cols_available = list(df_raw.columns)
@@ -646,6 +783,7 @@ k3.metric("Standards", int((raw_df["Type"].str.lower()=="standard").sum()))
 k4.metric("Outliers flagged", int(raw_df["Outlier"].sum()))
 
 st.subheader("1) Review & clean wells")
+render_tutorial_callout("clean")
 st.caption("Toggle **keep** to drop bad replicates. Outliers by ΔCq are flagged.")
 edited = st.data_editor(
     raw_df,
@@ -678,6 +816,7 @@ st.dataframe(rep_stats, width="stretch", height=440)
 # ------------- standards mapping -------------
 if quant_mode == "Absolute (std curve)":
     st.subheader("3) Standards map (Label → Concentration)")
+    render_tutorial_callout("standards")
     std_labels = clean_df.loc[(clean_df["Type"].str.lower()=="standard"), "Label"].dropna().unique().tolist()
     std_labels = sorted(std_labels, key=lambda x: (re.sub(r"\D","",x)=="", re.sub(r"\D","",x), x))
     auto_fill = _serial_dilution(std_labels, DEFAULT_TOP_CONC, DEFAULT_DILUTION_FACTOR, highest_first=True)
@@ -709,6 +848,7 @@ if quant_mode == "Absolute (std curve)":
 if quant_mode == "Absolute (std curve)":
     # ------------- fit curves -------------
     st.subheader("4) Fit standard curves")
+    render_tutorial_callout("autoqc")
     if plate_scope == "Gene × Plate":
         std_input = collapsed_df[(collapsed_df["Type"].str.lower()=="standard") & (collapsed_df["keep"])].copy()
         std_input["Gene"] = std_input["Gene"].astype(str) + " | " + std_input["Plate"].astype(str)
@@ -864,6 +1004,7 @@ if quant_mode == "Absolute (std curve)":
 
     # ------------- quantify samples -------------
     st.subheader("5) Quantify samples")
+    render_tutorial_callout("quantify")
     if plate_scope == "Gene × Plate":
         samp_input = collapsed_df[(collapsed_df["Type"].str.lower()=="sample") & (collapsed_df["keep"])].copy()
         samp_input["Gene"] = samp_input["Gene"].astype(str) + " | " + samp_input["Plate"].astype(str)
@@ -941,6 +1082,7 @@ export_norm_df = (
 
 # ------------- export -------------
 st.subheader("7) Export")
+render_tutorial_callout("export")
 # Pass per-sample normalized table separately from the per-well export table
 excel_bytes = download_excel(clean_df, rep_stats, map_df, curves_df, std_points, quant_df, norm_df, export_norm_df)
 st.download_button(
