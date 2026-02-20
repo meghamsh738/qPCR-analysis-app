@@ -684,6 +684,9 @@ def render_tutorial_focus():
 
   const focusClass = 'easylab-tutorial-focus';
   const overlayId = 'easylab-tutorial-overlay';
+  const minWidth = 160;
+  const minHeight = 44;
+  const minArea = 9000;
   let overlay = doc.getElementById(overlayId);
   if (!overlay) {{
     overlay = doc.createElement('div');
@@ -691,7 +694,7 @@ def render_tutorial_focus():
     overlay.style.position = 'fixed';
     overlay.style.border = '3px solid rgba(31, 91, 255, 0.88)';
     overlay.style.borderRadius = '12px';
-    overlay.style.boxShadow = '0 0 0 9999px rgba(10, 12, 22, 0.58), 0 0 0 6px rgba(31, 91, 255, 0.2)';
+    overlay.style.boxShadow = '0 0 0 9999px rgba(10, 12, 22, 0.48), 0 0 0 6px rgba(31, 91, 255, 0.2)';
     overlay.style.pointerEvents = 'none';
     overlay.style.zIndex = '2147483600';
     overlay.style.opacity = '0';
@@ -699,13 +702,95 @@ def render_tutorial_focus():
     doc.body.appendChild(overlay);
   }}
 
+  const isVisible = (node) => {{
+    if (!node || !(node instanceof host.HTMLElement)) return false;
+    const style = host.getComputedStyle(node);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+    const rect = node.getBoundingClientRect();
+    return rect.width > 1 && rect.height > 1;
+  }};
+
+  const isMeaningfulTarget = (node) => {{
+    if (!isVisible(node)) return false;
+    const rect = node.getBoundingClientRect();
+    if (rect.width < minWidth || rect.height < minHeight || rect.width * rect.height < minArea) return false;
+    const hasAnchor = Boolean(node.querySelector('.tutorial-anchor'));
+    const text = (node.textContent || '').trim();
+    if (hasAnchor && text.length === 0 && !node.querySelector('input, select, textarea, button, [role="button"]')) {{
+      return false;
+    }}
+    return true;
+  }};
+
+  const collectNeighbors = (node, maxCount = 12) => {{
+    const out = [];
+    if (!node || !node.parentElement) return out;
+    let cur = node.nextElementSibling;
+    while (cur && out.length < maxCount) {{
+      out.push(cur);
+      cur = cur.nextElementSibling;
+    }}
+    cur = node.previousElementSibling;
+    while (cur && out.length < maxCount * 2) {{
+      out.push(cur);
+      cur = cur.previousElementSibling;
+    }}
+    return out;
+  }};
+
+  const dedupe = (nodes) => {{
+    const seen = new Set();
+    return nodes.filter((node) => {{
+      if (!node || seen.has(node)) return false;
+      seen.add(node);
+      return true;
+    }});
+  }};
+
+  const pickFocusTarget = (anchor) => {{
+    const candidates = [];
+    const anchorContainer =
+      anchor.closest('div[data-testid="stElementContainer"]') ||
+      anchor.closest('div[data-testid="stVerticalBlock"]') ||
+      anchor.parentElement;
+
+    const callout = doc.querySelector(`.tutorial-callout[data-step="${{activeStep}}"]`);
+    const calloutContainer =
+      callout?.closest('div[data-testid="stElementContainer"]') ||
+      callout?.closest('div[data-testid="stVerticalBlock"]') ||
+      null;
+
+    if (calloutContainer) candidates.push(calloutContainer);
+    if (anchorContainer) {{
+      candidates.push(...collectNeighbors(anchorContainer));
+      candidates.push(anchorContainer);
+
+      const parentBlock = anchorContainer.closest('div[data-testid="stVerticalBlock"]');
+      if (parentBlock) candidates.push(parentBlock);
+
+      const parentRegion = anchorContainer.closest('section[data-testid="stSidebar"], div[data-testid="stMainBlockContainer"]');
+      if (parentRegion) candidates.push(parentRegion);
+    }}
+
+    for (const candidate of dedupe(candidates)) {{
+      if (isMeaningfulTarget(candidate)) return candidate;
+    }}
+
+    if (calloutContainer && isVisible(calloutContainer)) return calloutContainer;
+    return anchorContainer || callout || null;
+  }};
+
   const updateOverlayFromFocus = () => {{
     const focused = doc.querySelector(`.${{focusClass}}`);
-    if (!focused) {{
+    if (!focused || !isVisible(focused)) {{
       overlay.style.opacity = '0';
       return;
     }}
     const rect = focused.getBoundingClientRect();
+    if (rect.width < 8 || rect.height < 8) {{
+      overlay.style.opacity = '0';
+      return;
+    }}
     const pad = 8;
     const top = Math.max(6, rect.top - pad);
     const left = Math.max(6, rect.left - pad);
@@ -745,17 +830,16 @@ def render_tutorial_focus():
     updateOverlayFromFocus();
     return;
   }}
-  const target =
-    anchor.closest('div[data-testid="stElementContainer"]') ||
-    anchor.closest('div[data-testid="stVerticalBlock"]') ||
-    anchor.parentElement;
+  const target = pickFocusTarget(anchor);
   if (!target) {{
     updateOverlayFromFocus();
     return;
   }}
 
   target.classList.add(focusClass);
-  if (host.__easylabTutorialActiveStep !== activeStep) {{
+  const targetRect = target.getBoundingClientRect();
+  const targetOffscreen = targetRect.top < 96 || targetRect.bottom > host.innerHeight - 72;
+  if (host.__easylabTutorialActiveStep !== activeStep || targetOffscreen) {{
     target.scrollIntoView({{ behavior: 'smooth', block: 'center', inline: 'nearest' }});
   }}
   host.__easylabTutorialActiveStep = activeStep;
@@ -812,8 +896,9 @@ def render_tutorial_callout(step_id, *, sidebar=False):
     step = _current_tutorial_step()
     if step["id"] != step_id:
         return
+    safe_step = re.sub(r"[^a-z0-9_-]", "", str(step_id).lower())
     html = (
-        "<div class='tutorial-callout'>"
+        f"<div class='tutorial-callout' data-step='{safe_step}'>"
         f"<p><strong>Step {st.session_state.get('tutorial_step_idx', 0) + 1}/{len(TUTORIAL_STEPS)} · {step['title']}</strong></p>"
         f"<p>{step['description']}</p>"
         "</div>"
