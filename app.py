@@ -69,7 +69,7 @@ def ensure_paths(paths):
 APP_DIR = Path(__file__).resolve().parent
 EXAMPLE_WELLS_PATH = APP_DIR / "sample-data" / "qpcr_example.csv"
 
-st.set_page_config(page_title="qPCR Analysis", page_icon="🧬", layout="centered")
+st.set_page_config(page_title="qPCR Analysis", page_icon="🧬", layout="wide")
 
 st.markdown(
     """
@@ -154,7 +154,7 @@ st.markdown(
         }
 
         .block-container{
-          max-width: 980px;
+          max-width: min(1460px, 96vw);
           padding-top: 28px;
           padding-bottom: 64px;
         }
@@ -682,25 +682,84 @@ def render_tutorial_focus():
   const doc = host?.document;
   if (!doc) return;
 
-  doc.querySelectorAll('.easylab-tutorial-focus').forEach((node) => node.classList.remove('easylab-tutorial-focus'));
+  const focusClass = 'easylab-tutorial-focus';
+  const overlayId = 'easylab-tutorial-overlay';
+  let overlay = doc.getElementById(overlayId);
+  if (!overlay) {{
+    overlay = doc.createElement('div');
+    overlay.id = overlayId;
+    overlay.style.position = 'fixed';
+    overlay.style.border = '3px solid rgba(31, 91, 255, 0.88)';
+    overlay.style.borderRadius = '12px';
+    overlay.style.boxShadow = '0 0 0 9999px rgba(10, 12, 22, 0.58), 0 0 0 6px rgba(31, 91, 255, 0.2)';
+    overlay.style.pointerEvents = 'none';
+    overlay.style.zIndex = '2147483600';
+    overlay.style.opacity = '0';
+    overlay.style.transition = 'opacity 120ms ease-out';
+    doc.body.appendChild(overlay);
+  }}
+
+  const updateOverlayFromFocus = () => {{
+    const focused = doc.querySelector(`.${{focusClass}}`);
+    if (!focused) {{
+      overlay.style.opacity = '0';
+      return;
+    }}
+    const rect = focused.getBoundingClientRect();
+    const pad = 8;
+    const top = Math.max(6, rect.top - pad);
+    const left = Math.max(6, rect.left - pad);
+    const width = Math.max(0, rect.width + pad * 2);
+    const height = Math.max(0, rect.height + pad * 2);
+    overlay.style.top = `${{top}}px`;
+    overlay.style.left = `${{left}}px`;
+    overlay.style.width = `${{width}}px`;
+    overlay.style.height = `${{height}}px`;
+    overlay.style.opacity = '1';
+  }};
+
+  if (!host.__easylabTutorialOverlayBound) {{
+    host.addEventListener(
+      'scroll',
+      () => {{
+        if (typeof host.__easylabTutorialOverlayUpdate === 'function') host.__easylabTutorialOverlayUpdate();
+      }},
+      true
+    );
+    host.addEventListener('resize', () => {{
+      if (typeof host.__easylabTutorialOverlayUpdate === 'function') host.__easylabTutorialOverlayUpdate();
+    }});
+    host.__easylabTutorialOverlayBound = true;
+  }}
+  host.__easylabTutorialOverlayUpdate = updateOverlayFromFocus;
+
+  doc.querySelectorAll(`.${{focusClass}}`).forEach((node) => node.classList.remove(focusClass));
   if (!activeStep) {{
     host.__easylabTutorialActiveStep = '';
+    updateOverlayFromFocus();
     return;
   }}
 
   const anchor = doc.querySelector(`.tutorial-anchor[data-step="${{activeStep}}"]`);
-  if (!anchor) return;
+  if (!anchor) {{
+    updateOverlayFromFocus();
+    return;
+  }}
   const target =
-    anchor.closest('div[data-testid="stVerticalBlock"]') ||
     anchor.closest('div[data-testid="stElementContainer"]') ||
+    anchor.closest('div[data-testid="stVerticalBlock"]') ||
     anchor.parentElement;
-  if (!target) return;
+  if (!target) {{
+    updateOverlayFromFocus();
+    return;
+  }}
 
-  target.classList.add('easylab-tutorial-focus');
+  target.classList.add(focusClass);
   if (host.__easylabTutorialActiveStep !== activeStep) {{
     target.scrollIntoView({{ behavior: 'smooth', block: 'center', inline: 'nearest' }});
   }}
   host.__easylabTutorialActiveStep = activeStep;
+  updateOverlayFromFocus();
 }})();
 </script>
         """,
