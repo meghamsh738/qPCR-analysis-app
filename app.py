@@ -450,29 +450,32 @@ st.markdown(
           border-radius: var(--radius-md);
           background: var(--surface-2);
           padding: 10px 12px;
-          margin-top: 2px;
+          margin-top: 0;
           box-shadow: var(--shadow-soft);
-          position: sticky;
-          top: 8px;
+          position: fixed;
+          right: 14px;
+          bottom: 88px;
+          width: min(420px, calc(100vw - 28px));
+          max-width: 420px;
+          max-height: 42vh;
+          overflow: auto;
           z-index: 2147483650;
         }
 
-        /* Keep Back/Next/Skip controls readable above the tutorial dim layer. */
+        /* Keep Back/Next/Skip controls floating and always reachable. */
         .tutorial-top-card + div[data-testid="stHorizontalBlock"]{
-          position: relative;
-          z-index: 2147483650;
+          position: fixed;
+          right: 14px;
+          bottom: 14px;
+          width: min(420px, calc(100vw - 28px));
+          max-width: 420px;
+          z-index: 2147483651;
           background: color-mix(in srgb, var(--surface) 88%, transparent);
           border: 1px solid var(--border);
           border-radius: var(--radius-md);
           padding: 8px;
-          margin-top: 6px;
-          box-shadow: var(--shadow-soft);
-        }
-
-        .tutorial-top-card + div[data-testid="stHorizontalBlock"].easylab-tutorial-floating-controls{
-          position: fixed;
-          z-index: 2147483651;
           margin-top: 0;
+          box-shadow: var(--shadow-soft);
         }
 
         .tutorial-top-card .kicker{
@@ -525,6 +528,21 @@ st.markdown(
         @media (max-width: 960px){
           .setup-grid{
             grid-template-columns: 1fr;
+          }
+
+          .tutorial-top-card{
+            right: 10px;
+            bottom: 82px;
+            width: calc(100vw - 20px);
+            max-width: none;
+            max-height: 38vh;
+          }
+
+          .tutorial-top-card + div[data-testid="stHorizontalBlock"]{
+            right: 10px;
+            bottom: 10px;
+            width: calc(100vw - 20px);
+            max-width: none;
           }
         }
 
@@ -705,8 +723,6 @@ def render_tutorial_focus():
 
   const focusClass = 'easylab-tutorial-focus';
   const overlayId = 'easylab-tutorial-overlay';
-  const controlsSelector = '.tutorial-top-card + div[data-testid="stHorizontalBlock"]';
-  const floatingControlsClass = 'easylab-tutorial-floating-controls';
   const minWidth = 160;
   const minHeight = 44;
   const minArea = 9000;
@@ -811,62 +827,14 @@ def render_tutorial_focus():
   }};
 
   const updateOverlayFromFocus = () => {{
-    const controls = doc.querySelector(controlsSelector);
-    const resetControlsPosition = () => {{
-      if (!controls) return;
-      controls.classList.remove(floatingControlsClass);
-      controls.style.position = '';
-      controls.style.zIndex = '';
-      controls.style.left = '';
-      controls.style.top = '';
-      controls.style.bottom = '';
-      controls.style.width = '';
-      controls.style.maxWidth = '';
-      controls.style.marginTop = '';
-    }};
-
-    const positionControlsNearTarget = (focusedRect) => {{
-      if (!controls) return;
-      const viewportWidth = host.innerWidth || doc.documentElement.clientWidth || 1280;
-      const viewportHeight = host.innerHeight || doc.documentElement.clientHeight || 720;
-      const edgePad = 12;
-      const controlsRect = controls.getBoundingClientRect();
-      const controlsHeight = Math.max(56, controlsRect.height || 0);
-      const controlsWidth = Math.max(260, Math.min(480, viewportWidth - edgePad * 2));
-
-      let left = focusedRect.left + focusedRect.width / 2 - controlsWidth / 2;
-      left = Math.min(Math.max(edgePad, left), Math.max(edgePad, viewportWidth - controlsWidth - edgePad));
-
-      let top = focusedRect.bottom + edgePad;
-      if (top + controlsHeight > viewportHeight - edgePad) {{
-        top = focusedRect.top - controlsHeight - edgePad;
-      }}
-      if (top < edgePad) {{
-        top = viewportHeight - controlsHeight - edgePad;
-      }}
-      top = Math.min(Math.max(edgePad, top), Math.max(edgePad, viewportHeight - controlsHeight - edgePad));
-
-      controls.classList.add(floatingControlsClass);
-      controls.style.position = 'fixed';
-      controls.style.zIndex = '2147483651';
-      controls.style.left = `${{left}}px`;
-      controls.style.top = `${{top}}px`;
-      controls.style.bottom = 'auto';
-      controls.style.width = `${{controlsWidth}}px`;
-      controls.style.maxWidth = `${{controlsWidth}}px`;
-      controls.style.marginTop = '0';
-    }};
-
     const focused = doc.querySelector(`.${{focusClass}}`);
     if (!focused || !isVisible(focused)) {{
       overlay.style.opacity = '0';
-      resetControlsPosition();
       return;
     }}
     const rect = focused.getBoundingClientRect();
     if (rect.width < 8 || rect.height < 8) {{
       overlay.style.opacity = '0';
-      resetControlsPosition();
       return;
     }}
     const pad = 8;
@@ -879,7 +847,6 @@ def render_tutorial_focus():
     overlay.style.width = `${{width}}px`;
     overlay.style.height = `${{height}}px`;
     overlay.style.opacity = '1';
-    positionControlsNearTarget(rect);
   }};
 
   if (!host.__easylabTutorialOverlayBound) {{
