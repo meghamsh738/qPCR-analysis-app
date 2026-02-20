@@ -452,6 +452,22 @@ st.markdown(
           padding: 10px 12px;
           margin-top: 2px;
           box-shadow: var(--shadow-soft);
+          position: sticky;
+          top: 8px;
+          z-index: 2147483650;
+        }
+
+        /* Keep Back/Next/Skip controls readable above the tutorial dim layer. */
+        .tutorial-top-card + div[data-testid="stHorizontalBlock"]{
+          position: sticky;
+          top: 92px;
+          z-index: 2147483650;
+          background: color-mix(in srgb, var(--surface) 88%, transparent);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          padding: 8px;
+          margin-top: 6px;
+          box-shadow: var(--shadow-soft);
         }
 
         .tutorial-top-card .kicker{
@@ -694,7 +710,7 @@ def render_tutorial_focus():
     overlay.style.position = 'fixed';
     overlay.style.border = '3px solid rgba(31, 91, 255, 0.88)';
     overlay.style.borderRadius = '12px';
-    overlay.style.boxShadow = '0 0 0 9999px rgba(10, 12, 22, 0.48), 0 0 0 6px rgba(31, 91, 255, 0.2)';
+    overlay.style.boxShadow = '0 0 0 9999px rgba(10, 12, 22, 0.26), 0 0 0 6px rgba(31, 91, 255, 0.2)';
     overlay.style.pointerEvents = 'none';
     overlay.style.zIndex = '2147483600';
     overlay.style.opacity = '0';
@@ -747,8 +763,19 @@ def render_tutorial_focus():
     }});
   }};
 
+  const scoreTarget = (candidate, anchorRect) => {{
+    const rect = candidate.getBoundingClientRect();
+    const anchorCenter = anchorRect.top + anchorRect.height / 2;
+    const candidateCenter = rect.top + rect.height / 2;
+    const distance = Math.abs(candidateCenter - anchorCenter);
+    const area = rect.width * rect.height;
+    const largePenalty = area > 240000 ? 5000 : 0;
+    return distance + largePenalty;
+  }};
+
   const pickFocusTarget = (anchor) => {{
     const candidates = [];
+    const anchorRect = anchor.getBoundingClientRect();
     const anchorContainer =
       anchor.closest('div[data-testid="stElementContainer"]') ||
       anchor.closest('div[data-testid="stVerticalBlock"]') ||
@@ -760,21 +787,17 @@ def render_tutorial_focus():
       callout?.closest('div[data-testid="stVerticalBlock"]') ||
       null;
 
-    if (calloutContainer) candidates.push(calloutContainer);
+    if (calloutContainer && isVisible(calloutContainer)) return calloutContainer;
     if (anchorContainer) {{
       candidates.push(...collectNeighbors(anchorContainer));
       candidates.push(anchorContainer);
-
       const parentBlock = anchorContainer.closest('div[data-testid="stVerticalBlock"]');
       if (parentBlock) candidates.push(parentBlock);
-
-      const parentRegion = anchorContainer.closest('section[data-testid="stSidebar"], div[data-testid="stMainBlockContainer"]');
-      if (parentRegion) candidates.push(parentRegion);
     }}
 
-    for (const candidate of dedupe(candidates)) {{
-      if (isMeaningfulTarget(candidate)) return candidate;
-    }}
+    const meaningful = dedupe(candidates).filter((candidate) => isMeaningfulTarget(candidate));
+    meaningful.sort((a, b) => scoreTarget(a, anchorRect) - scoreTarget(b, anchorRect));
+    if (meaningful.length > 0) return meaningful[0];
 
     if (calloutContainer && isVisible(calloutContainer)) return calloutContainer;
     return anchorContainer || callout || null;
@@ -839,8 +862,12 @@ def render_tutorial_focus():
   target.classList.add(focusClass);
   const targetRect = target.getBoundingClientRect();
   const targetOffscreen = targetRect.top < 96 || targetRect.bottom > host.innerHeight - 72;
-  if (host.__easylabTutorialActiveStep !== activeStep || targetOffscreen) {{
+  const stepChanged = host.__easylabTutorialActiveStep !== activeStep;
+  if (stepChanged || targetOffscreen) {{
     target.scrollIntoView({{ behavior: 'smooth', block: 'center', inline: 'nearest' }});
+    host.setTimeout(() => {{
+      if (typeof host.__easylabTutorialOverlayUpdate === 'function') host.__easylabTutorialOverlayUpdate();
+    }}, 260);
   }}
   host.__easylabTutorialActiveStep = activeStep;
   updateOverlayFromFocus();
