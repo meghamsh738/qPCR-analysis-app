@@ -878,18 +878,22 @@ def render_tutorial_focus():
         width=0,
     )
 
-def render_tutorial_controls():
+def render_tutorial_controls(*, sidebar=False):
+    panel = st.sidebar if sidebar else st
+    key_suffix = "sidebar" if sidebar else "top"
+    card_class = "tutorial-panel" if sidebar else "tutorial-top-card"
+
     if not st.session_state.get("tutorial_active"):
-        st.caption("Guided run with focused highlights and Next/Back/Skip controls.")
-        if st.button("Start tutorial", key="tutorial_start_top", type="primary", use_container_width=True):
+        panel.caption("Guided run with focused highlights and Next/Back/Skip controls.")
+        if panel.button("Start tutorial", key=f"tutorial_start_{key_suffix}", type="primary", use_container_width=True):
             _start_tutorial()
             _safe_rerun()
         return
 
     step = _current_tutorial_step()
-    st.markdown(
+    panel.markdown(
         (
-            "<div class='tutorial-top-card'>"
+            f"<div class='{card_class}'>"
             "<div class='kicker'>Guided tutorial</div>"
             f"<strong>Step {st.session_state.get('tutorial_step_idx', 0) + 1}/{len(TUTORIAL_STEPS)} · {step['title']}</strong>"
             f"<div>{step['description']}</div>"
@@ -897,16 +901,16 @@ def render_tutorial_controls():
         ),
         unsafe_allow_html=True,
     )
-    c_back, c_next, c_skip = st.columns(3)
+    c_back, c_next, c_skip = panel.columns(3)
     back = c_back.button(
         "Back",
-        key="tutorial_back_top",
+        key=f"tutorial_back_{key_suffix}",
         use_container_width=True,
         disabled=st.session_state["tutorial_step_idx"] == 0,
     )
     next_label = "Finish" if st.session_state["tutorial_step_idx"] >= len(TUTORIAL_STEPS) - 1 else "Next"
-    nxt = c_next.button(next_label, key="tutorial_next_top", use_container_width=True, type="primary")
-    skip = c_skip.button("Skip", key="tutorial_skip_top", use_container_width=True)
+    nxt = c_next.button(next_label, key=f"tutorial_next_{key_suffix}", use_container_width=True, type="primary")
+    skip = c_skip.button("Skip", key=f"tutorial_skip_{key_suffix}", use_container_width=True)
     if back:
         _prev_tutorial_step()
         _safe_rerun()
@@ -986,6 +990,7 @@ if not st.session_state.get("setup_done"):
 # ------------- UI -------------
 st.sidebar.title("qPCR Analysis")
 st.sidebar.caption("Load example wells, upload a file, or paste a table.")
+render_tutorial_controls(sidebar=True)
 
 with st.sidebar.expander("Settings", expanded=False):
     st.markdown("**Storage paths**")
