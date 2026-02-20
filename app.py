@@ -2,6 +2,7 @@
 # Run: streamlit run app.py
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 import re
@@ -485,6 +486,21 @@ st.markdown(
           margin: 0;
         }
 
+        .tutorial-anchor{
+          width: 0;
+          height: 0;
+          opacity: 0;
+          pointer-events: none;
+        }
+
+        .easylab-tutorial-focus{
+          outline: 3px solid rgba(31, 91, 255, 0.82);
+          outline-offset: 4px;
+          border-radius: 12px;
+          box-shadow: 0 0 0 8px rgba(31, 91, 255, 0.14);
+          scroll-margin-top: 96px;
+        }
+
         @media (max-width: 960px){
           .setup-grid{
             grid-template-columns: 1fr;
@@ -598,7 +614,7 @@ TUTORIAL_STEPS = [
         "description": "Check computed quantities for sample wells using the selected fitted curve.",
     },
     {
-        "id": "quantify",
+        "id": "normalize",
         "title": "Normalize to reference gene",
         "description": "Review normalized quantities and confirm the selected reference gene is present.",
     },
@@ -642,6 +658,55 @@ def _safe_rerun():
     rerun_fn = getattr(st, "rerun", None) or getattr(st, "experimental_rerun", None)
     if callable(rerun_fn):
         rerun_fn()
+
+def render_tutorial_anchor(step_id, *, sidebar=False):
+    safe_step = re.sub(r"[^a-z0-9_-]", "", str(step_id).lower())
+    html = f"<div class='tutorial-anchor' data-step='{safe_step}' aria-hidden='true'></div>"
+    if sidebar:
+        st.sidebar.markdown(html, unsafe_allow_html=True)
+    else:
+        st.markdown(html, unsafe_allow_html=True)
+
+def render_tutorial_focus():
+    if not st.session_state.get("tutorial_active"):
+        active_step = ""
+    else:
+        active_step = re.sub(r"[^a-z0-9_-]", "", str(_current_tutorial_step().get("id", "")).lower())
+
+    components.html(
+        f"""
+<script>
+(() => {{
+  const activeStep = {json.dumps(active_step)};
+  const host = window.parent;
+  const doc = host?.document;
+  if (!doc) return;
+
+  doc.querySelectorAll('.easylab-tutorial-focus').forEach((node) => node.classList.remove('easylab-tutorial-focus'));
+  if (!activeStep) {{
+    host.__easylabTutorialActiveStep = '';
+    return;
+  }}
+
+  const anchor = doc.querySelector(`.tutorial-anchor[data-step="${{activeStep}}"]`);
+  if (!anchor) return;
+  const target =
+    anchor.closest('div[data-testid="stVerticalBlock"]') ||
+    anchor.closest('div[data-testid="stElementContainer"]') ||
+    anchor.parentElement;
+  if (!target) return;
+
+  target.classList.add('easylab-tutorial-focus');
+  if (host.__easylabTutorialActiveStep !== activeStep) {{
+    target.scrollIntoView({{ behavior: 'smooth', block: 'center', inline: 'nearest' }});
+  }}
+  host.__easylabTutorialActiveStep = activeStep;
+}})();
+</script>
+        """,
+        height=0,
+        width=0,
+    )
 
 def render_tutorial_controls():
     if not st.session_state.get("tutorial_active"):
@@ -764,6 +829,7 @@ with st.sidebar.expander("Settings", expanded=False):
             st.error(f"Unable to save settings: {exc}")
     st.caption("License: All Rights Reserved.")
 
+render_tutorial_anchor("input", sidebar=True)
 render_tutorial_callout("input", sidebar=True)
 
 input_mode = st.sidebar.radio("Input source", ["Example (sample-data/qpcr_example.csv)", "Upload file", "Paste table"], index=0)
@@ -824,6 +890,7 @@ Paste the returned CSV into the uploader or sidebar paste box.
     )
 
 # Load
+render_tutorial_focus()
 try:
     if input_mode.startswith("Example"):
         if not EXAMPLE_WELLS_PATH.exists():
@@ -847,6 +914,7 @@ except Exception as e:
 # Column mapping UI (allows manual selection of label/Cq/replicate headers)
 st.sidebar.markdown("---")
 render_tutorial_callout("mapping", sidebar=True)
+render_tutorial_anchor("mapping", sidebar=True)
 st.sidebar.subheader("Column mapping")
 
 cols_available = list(df_raw.columns)
@@ -868,6 +936,7 @@ else:
     df_mapped["Replicate"] = 1
 
 raw_df = coerce_columns(df_mapped)
+render_tutorial_focus()
 
 # Keep column + outliers
 raw_df["keep"] = True
@@ -880,6 +949,7 @@ k3.metric("Standards", int((raw_df["Type"].str.lower()=="standard").sum()))
 k4.metric("Outliers flagged", int(raw_df["Outlier"].sum()))
 
 st.subheader("1) Review & clean wells")
+render_tutorial_anchor("clean")
 render_tutorial_callout("clean")
 st.caption("Toggle **keep** to drop bad replicates. Outliers by ΔCq are flagged.")
 edited = st.data_editor(
@@ -913,6 +983,7 @@ st.dataframe(rep_stats, width="stretch", height=440)
 # ------------- standards mapping -------------
 if quant_mode == "Absolute (std curve)":
     st.subheader("3) Standards map (Label → Concentration)")
+    render_tutorial_anchor("standards")
     render_tutorial_callout("standards")
     std_labels = clean_df.loc[(clean_df["Type"].str.lower()=="standard"), "Label"].dropna().unique().tolist()
     std_labels = sorted(std_labels, key=lambda x: (re.sub(r"\D","",x)=="", re.sub(r"\D","",x), x))
@@ -945,6 +1016,7 @@ if quant_mode == "Absolute (std curve)":
 if quant_mode == "Absolute (std curve)":
     # ------------- fit curves -------------
     st.subheader("4) Fit standard curves")
+    render_tutorial_anchor("autoqc")
     render_tutorial_callout("autoqc")
     if plate_scope == "Gene × Plate":
         std_input = collapsed_df[(collapsed_df["Type"].str.lower()=="standard") & (collapsed_df["keep"])].copy()
@@ -1101,6 +1173,7 @@ if quant_mode == "Absolute (std curve)":
 
     # ------------- quantify samples -------------
     st.subheader("5) Quantify samples")
+    render_tutorial_anchor("quantify")
     render_tutorial_callout("quantify")
     if plate_scope == "Gene × Plate":
         samp_input = collapsed_df[(collapsed_df["Type"].str.lower()=="sample") & (collapsed_df["keep"])].copy()
@@ -1113,6 +1186,8 @@ if quant_mode == "Absolute (std curve)":
 
     # ------------- normalize -------------
     st.subheader("6) Normalize to reference gene")
+    render_tutorial_anchor("normalize")
+    render_tutorial_callout("normalize")
     norm_df = normalize_to_ref(quant_df, ref_gene=ref_gene)
     if norm_df["RefQty"].isna().all():
         st.info(f"Reference gene '{ref_gene}' missing in standards/samples; add a ref gene to see normalized values.")
@@ -1179,6 +1254,7 @@ export_norm_df = (
 
 # ------------- export -------------
 st.subheader("7) Export")
+render_tutorial_anchor("export")
 render_tutorial_callout("export")
 # Pass per-sample normalized table separately from the per-well export table
 excel_bytes = download_excel(clean_df, rep_stats, map_df, curves_df, std_points, quant_df, norm_df, export_norm_df)
@@ -1190,4 +1266,5 @@ st.download_button(
     type="primary",
 )
 
+render_tutorial_focus()
 st.success("Done. Paste/upload → clean → averages → fit → quantify → normalize → export.")
