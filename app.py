@@ -444,6 +444,24 @@ st.markdown(
           margin-top: 6px;
         }
 
+        .tutorial-top-card{
+          border: 2px solid var(--border);
+          border-radius: var(--radius-md);
+          background: var(--surface-2);
+          padding: 10px 12px;
+          margin-top: 2px;
+          box-shadow: var(--shadow-soft);
+        }
+
+        .tutorial-top-card .kicker{
+          font-family: var(--font-mono);
+          text-transform: uppercase;
+          letter-spacing: var(--tracking-label);
+          font-size: 12px;
+          color: var(--muted);
+          margin-bottom: 6px;
+        }
+
         .tutorial-panel strong{
           display: block;
           margin-bottom: 6px;
@@ -454,13 +472,13 @@ st.markdown(
         }
 
         .tutorial-callout{
-          border: 2px solid rgba(31, 91, 255, 0.45);
+          border: 3px solid rgba(31, 91, 255, 0.8);
           border-radius: var(--radius-md);
           background: var(--accent-soft);
           color: var(--text);
           padding: 10px 12px;
           margin: 6px 0 10px 0;
-          box-shadow: var(--shadow-soft);
+          box-shadow: 0 0 0 4px rgba(31, 91, 255, 0.22), var(--shadow-soft);
         }
 
         .tutorial-callout p{
@@ -601,6 +619,64 @@ def _current_tutorial_step():
     idx = max(0, min(len(TUTORIAL_STEPS) - 1, idx))
     return TUTORIAL_STEPS[idx]
 
+def _start_tutorial():
+    st.session_state["tutorial_active"] = True
+    st.session_state["tutorial_step_idx"] = 0
+
+def _stop_tutorial():
+    st.session_state["tutorial_active"] = False
+    st.session_state["tutorial_step_idx"] = 0
+
+def _next_tutorial_step():
+    idx = int(st.session_state.get("tutorial_step_idx", 0))
+    if idx >= len(TUTORIAL_STEPS) - 1:
+        _stop_tutorial()
+    else:
+        st.session_state["tutorial_step_idx"] = idx + 1
+
+def _prev_tutorial_step():
+    idx = int(st.session_state.get("tutorial_step_idx", 0))
+    st.session_state["tutorial_step_idx"] = max(0, idx - 1)
+
+def render_tutorial_controls():
+    if not st.session_state.get("tutorial_active"):
+        st.caption("Guided run with focused highlights and Next/Back/Skip controls.")
+        if st.button("Start tutorial", key="tutorial_start_top", type="primary", use_container_width=True):
+            _start_tutorial()
+            st.experimental_rerun()
+        return
+
+    step = _current_tutorial_step()
+    st.markdown(
+        (
+            "<div class='tutorial-top-card'>"
+            "<div class='kicker'>Guided tutorial</div>"
+            f"<strong>Step {st.session_state.get('tutorial_step_idx', 0) + 1}/{len(TUTORIAL_STEPS)} · {step['title']}</strong>"
+            f"<div>{step['description']}</div>"
+            "</div>"
+        ),
+        unsafe_allow_html=True,
+    )
+    c_back, c_next, c_skip = st.columns(3)
+    back = c_back.button(
+        "Back",
+        key="tutorial_back_top",
+        use_container_width=True,
+        disabled=st.session_state["tutorial_step_idx"] == 0,
+    )
+    next_label = "Finish" if st.session_state["tutorial_step_idx"] >= len(TUTORIAL_STEPS) - 1 else "Next"
+    nxt = c_next.button(next_label, key="tutorial_next_top", use_container_width=True, type="primary")
+    skip = c_skip.button("Skip", key="tutorial_skip_top", use_container_width=True)
+    if back:
+        _prev_tutorial_step()
+        st.experimental_rerun()
+    if nxt:
+        _next_tutorial_step()
+        st.experimental_rerun()
+    if skip:
+        _stop_tutorial()
+        st.experimental_rerun()
+
 def render_tutorial_callout(step_id, *, sidebar=False):
     if not st.session_state.get("tutorial_active"):
         return
@@ -683,44 +759,6 @@ with st.sidebar.expander("Settings", expanded=False):
             st.error(f"Unable to save settings: {exc}")
     st.caption("License: All Rights Reserved.")
 
-with st.sidebar.expander("Tutorial", expanded=False):
-    if not st.session_state.get("tutorial_active"):
-        st.caption("Step-by-step guidance for first-time runs.")
-        if st.button("Start tutorial", use_container_width=True):
-            st.session_state["tutorial_active"] = True
-            st.session_state["tutorial_step_idx"] = 0
-            st.experimental_rerun()
-    else:
-        step = _current_tutorial_step()
-        st.markdown(
-            (
-                "<div class='tutorial-panel'>"
-                f"<strong>Step {st.session_state.get('tutorial_step_idx', 0) + 1}/{len(TUTORIAL_STEPS)}</strong>"
-                f"{step['title']}<br/>{step['description']}"
-                "</div>"
-            ),
-            unsafe_allow_html=True,
-        )
-        c_back, c_next, c_skip = st.columns(3)
-        back = c_back.button("Back", use_container_width=True, disabled=st.session_state["tutorial_step_idx"] == 0)
-        next_label = "Finish" if st.session_state["tutorial_step_idx"] >= len(TUTORIAL_STEPS) - 1 else "Next"
-        nxt = c_next.button(next_label, use_container_width=True, type="primary")
-        skip = c_skip.button("Skip", use_container_width=True)
-        if back:
-            st.session_state["tutorial_step_idx"] = max(0, st.session_state["tutorial_step_idx"] - 1)
-            st.experimental_rerun()
-        if nxt:
-            if st.session_state["tutorial_step_idx"] >= len(TUTORIAL_STEPS) - 1:
-                st.session_state["tutorial_active"] = False
-                st.session_state["tutorial_step_idx"] = 0
-            else:
-                st.session_state["tutorial_step_idx"] += 1
-            st.experimental_rerun()
-        if skip:
-            st.session_state["tutorial_active"] = False
-            st.session_state["tutorial_step_idx"] = 0
-            st.experimental_rerun()
-
 render_tutorial_callout("input", sidebar=True)
 
 input_mode = st.sidebar.radio("Input source", ["Example (sample-data/qpcr_example.csv)", "Upload file", "Paste table"], index=0)
@@ -750,8 +788,12 @@ quant_mode = st.sidebar.radio(
 )
 if quant_mode != "Absolute (std curve)":
     st.info("Standard-curve fitting and Auto-QC are shown only in `Absolute (std curve)` mode.")
+header_left, header_right = st.columns([0.72, 0.28], gap="medium")
+with header_left:
+    st.title("qPCR Analysis")
+with header_right:
+    render_tutorial_controls()
 
-st.title("qPCR Analysis")
 st.markdown(
     """
     <div class="hero">

@@ -14,20 +14,6 @@ async function snapSection(page, headingRegex: RegExp, filename: string, scrollO
   await expect(page).toHaveScreenshot(filename, { mask: [banner] })
 }
 
-async function scrollToLargeImage(page) {
-  const images = page.locator('img')
-  const count = await images.count()
-  for (let i = 0; i < count; i += 1) {
-    const img = images.nth(i)
-    const box = await img.boundingBox()
-    if (box && box.width > 320 && box.height > 200) {
-      await img.scrollIntoViewIfNeeded()
-      return true
-    }
-  }
-  return false
-}
-
 test('example workflow screenshots', async ({ page }) => {
   await page.goto('/')
   await page.addStyleTag({ content: '* { transition: none !important; animation: none !important; }' })
@@ -62,13 +48,7 @@ test('example workflow screenshots', async ({ page }) => {
     }
   }
   await page.waitForTimeout(800)
-  const foundPlot = await scrollToLargeImage(page)
-  if (!foundPlot) {
-    await snapSection(page, /4\)\s*Fit standard curves/i, 'curves.png', 720)
-  } else {
-    await page.waitForTimeout(400)
-    await expect(page).toHaveScreenshot('curves.png')
-  }
+  await snapSection(page, /4\)\s*Fit standard curves/i, 'curves.png', 720)
   await snapSection(page, /6\)\s*Normalize to reference gene/i, 'quant_normalize.png')
   await snapSection(page, /7\)\s*Export/i, 'export.png')
 })
