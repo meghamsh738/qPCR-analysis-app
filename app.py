@@ -638,12 +638,17 @@ def _prev_tutorial_step():
     idx = int(st.session_state.get("tutorial_step_idx", 0))
     st.session_state["tutorial_step_idx"] = max(0, idx - 1)
 
+def _safe_rerun():
+    rerun_fn = getattr(st, "rerun", None) or getattr(st, "experimental_rerun", None)
+    if callable(rerun_fn):
+        rerun_fn()
+
 def render_tutorial_controls():
     if not st.session_state.get("tutorial_active"):
         st.caption("Guided run with focused highlights and Next/Back/Skip controls.")
         if st.button("Start tutorial", key="tutorial_start_top", type="primary", use_container_width=True):
             _start_tutorial()
-            st.experimental_rerun()
+            _safe_rerun()
         return
 
     step = _current_tutorial_step()
@@ -669,13 +674,13 @@ def render_tutorial_controls():
     skip = c_skip.button("Skip", key="tutorial_skip_top", use_container_width=True)
     if back:
         _prev_tutorial_step()
-        st.experimental_rerun()
+        _safe_rerun()
     if nxt:
         _next_tutorial_step()
-        st.experimental_rerun()
+        _safe_rerun()
     if skip:
         _stop_tutorial()
-        st.experimental_rerun()
+        _safe_rerun()
 
 def render_tutorial_callout(step_id, *, sidebar=False):
     if not st.session_state.get("tutorial_active"):
@@ -723,22 +728,22 @@ if not st.session_state.get("setup_done"):
     if use_defaults:
         for key, _, _ in PATH_FIELDS:
             st.session_state[key] = defaults.get(key, "")
-        st.experimental_rerun()
+        _safe_rerun()
 
     if finish:
         paths = current_paths()
         missing = [label for key, label, _ in PATH_FIELDS if not paths.get(key)]
         if missing:
             st.session_state.setup_error = "Please fill all paths before finishing setup."
-            st.experimental_rerun()
+            _safe_rerun()
         try:
             apply_paths(paths)
             st.session_state.setup_done = True
             st.session_state.setup_error = ""
-            st.experimental_rerun()
+            _safe_rerun()
         except Exception as exc:
             st.session_state.setup_error = f"Unable to create folders: {exc}"
-            st.experimental_rerun()
+            _safe_rerun()
 
     st.stop()
 
