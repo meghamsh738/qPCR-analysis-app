@@ -464,18 +464,20 @@ st.markdown(
 
         /* Keep Back/Next/Skip controls floating and always reachable. */
         .tutorial-top-card + div[data-testid="stHorizontalBlock"]{
-          position: fixed;
-          right: 14px;
-          bottom: 14px;
-          width: min(420px, calc(100vw - 28px));
-          max-width: 420px;
-          z-index: 2147483651;
+          position: relative;
+          z-index: 2147483650;
           background: color-mix(in srgb, var(--surface) 88%, transparent);
           border: 1px solid var(--border);
           border-radius: var(--radius-md);
           padding: 8px;
           margin-top: 0;
           box-shadow: var(--shadow-soft);
+        }
+
+        .easylab-tutorial-fixed-controls{
+          position: fixed !important;
+          z-index: 2147483651 !important;
+          margin-top: 0 !important;
         }
 
         .tutorial-top-card .kicker{
@@ -539,9 +541,6 @@ st.markdown(
           }
 
           .tutorial-top-card + div[data-testid="stHorizontalBlock"]{
-            right: 10px;
-            bottom: 10px;
-            width: calc(100vw - 20px);
             max-width: none;
           }
         }
@@ -723,6 +722,8 @@ def render_tutorial_focus():
 
   const focusClass = 'easylab-tutorial-focus';
   const overlayId = 'easylab-tutorial-overlay';
+  const fixedControlsClass = 'easylab-tutorial-fixed-controls';
+  const controlsHostKey = '__easylabTutorialFloatingControls';
   const minWidth = 160;
   const minHeight = 44;
   const minArea = 9000;
@@ -826,15 +827,86 @@ def render_tutorial_focus():
     return anchorContainer || callout || null;
   }};
 
+  const clearDockedControls = () => {{
+    const prev = host[controlsHostKey];
+    if (!prev || !(prev instanceof host.HTMLElement)) return;
+    prev.classList.remove(fixedControlsClass);
+    prev.style.position = '';
+    prev.style.right = '';
+    prev.style.left = '';
+    prev.style.bottom = '';
+    prev.style.width = '';
+    prev.style.maxWidth = '';
+    prev.style.zIndex = '';
+    host[controlsHostKey] = null;
+  }};
+
+  const findTopTutorialControls = () => {{
+    const card = doc.querySelector('.tutorial-top-card');
+    if (!card) return null;
+    const cardRect = card.getBoundingClientRect();
+    const blocks = Array.from(doc.querySelectorAll('div[data-testid="stHorizontalBlock"]'));
+    let best = null;
+    let bestScore = Number.POSITIVE_INFINITY;
+
+    for (const block of blocks) {{
+      if (!(block instanceof host.HTMLElement) || !isVisible(block)) continue;
+      const text = (block.textContent || '').toLowerCase();
+      const hasBack = text.includes('back');
+      const hasNextLike = text.includes('next') || text.includes('finish');
+      const hasSkip = text.includes('skip');
+      if (!(hasBack && hasNextLike && hasSkip)) continue;
+
+      const rect = block.getBoundingClientRect();
+      // Prefer the controls closest to the top tutorial card.
+      const dy = Math.abs(rect.top - cardRect.bottom);
+      const dx = Math.abs(rect.left - cardRect.left);
+      const score = dy + dx * 0.25;
+      if (score < bestScore) {{
+        best = block;
+        bestScore = score;
+      }}
+    }}
+    return best;
+  }};
+
+  const dockTutorialControls = () => {{
+    const controls = findTopTutorialControls();
+    if (!controls) {{
+      clearDockedControls();
+      return;
+    }}
+    const viewportWidth = host.innerWidth || doc.documentElement.clientWidth || 1280;
+    const edgePad = viewportWidth <= 960 ? 10 : 14;
+    const width = viewportWidth <= 960
+      ? Math.max(220, viewportWidth - edgePad * 2)
+      : Math.max(260, Math.min(420, viewportWidth - edgePad * 2));
+
+    if (host[controlsHostKey] && host[controlsHostKey] !== controls) {{
+      clearDockedControls();
+    }}
+    controls.classList.add(fixedControlsClass);
+    controls.style.position = 'fixed';
+    controls.style.right = `${{edgePad}}px`;
+    controls.style.left = 'auto';
+    controls.style.bottom = `${{edgePad}}px`;
+    controls.style.width = `${{width}}px`;
+    controls.style.maxWidth = `${{width}}px`;
+    controls.style.zIndex = '2147483651';
+    host[controlsHostKey] = controls;
+  }};
+
   const updateOverlayFromFocus = () => {{
     const focused = doc.querySelector(`.${{focusClass}}`);
     if (!focused || !isVisible(focused)) {{
       overlay.style.opacity = '0';
+      clearDockedControls();
       return;
     }}
     const rect = focused.getBoundingClientRect();
     if (rect.width < 8 || rect.height < 8) {{
       overlay.style.opacity = '0';
+      clearDockedControls();
       return;
     }}
     const pad = 8;
@@ -847,6 +919,7 @@ def render_tutorial_focus():
     overlay.style.width = `${{width}}px`;
     overlay.style.height = `${{height}}px`;
     overlay.style.opacity = '1';
+    dockTutorialControls();
   }};
 
   if (!host.__easylabTutorialOverlayBound) {{
@@ -867,6 +940,7 @@ def render_tutorial_focus():
   doc.querySelectorAll(`.${{focusClass}}`).forEach((node) => node.classList.remove(focusClass));
   if (!activeStep) {{
     host.__easylabTutorialActiveStep = '';
+    clearDockedControls();
     updateOverlayFromFocus();
     return;
   }}
