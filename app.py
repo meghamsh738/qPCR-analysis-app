@@ -74,14 +74,12 @@ st.set_page_config(page_title="qPCR Analysis", page_icon="🧬", layout="wide")
 st.markdown(
     """
     <style>
-        @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap");
-
         :root{
           --font-display: "Space Grotesk", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
           --font-body: "Space Grotesk", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
           --font-mono: "Space Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-          --tracking-display: 0.08em;
-          --tracking-label: 0.12em;
+          --tracking-display: 0;
+          --tracking-label: 0;
           --space-1: 4px;
           --space-2: 8px;
           --space-3: 12px;
@@ -89,29 +87,30 @@ st.markdown(
           --space-5: 24px;
           --space-6: 32px;
           --radius-sm: 8px;
-          --radius-md: 12px;
-          --radius-lg: 12px;
-          --bg: #F6F2EA;
+          --radius-md: 8px;
+          --radius-lg: 8px;
+          --bg: #F3F6FA;
           --panel: #FFFFFF;
-          --surface-2: #FFF7EC;
-          --surface-3: #F2EADF;
-          --border: #15151A;
-          --border-2: #0F0F14;
-          --muted: #575762;
-          --text: #111113;
-          --text-subtle: #2F2F36;
-          --accent: #1F5BFF;
-          --accent-strong: #1F5BFF;
-          --accent-soft: rgba(31, 91, 255, 0.18);
-          --focus: rgba(31, 91, 255, 0.35);
+          --surface-2: #F7F9FC;
+          --surface-3: #EEF3F8;
+          --border: #D6DEE8;
+          --border-2: #B8C4D3;
+          --muted: #64748B;
+          --text: #07111F;
+          --text-subtle: #334155;
+          --accent: #3156D4;
+          --accent-strong: #2447B8;
+          --accent-soft: rgba(49, 86, 212, 0.12);
+          --focus: rgba(49, 86, 212, 0.22);
           --success: #12b76a;
           --success-soft: rgba(18, 183, 106, 0.16);
           --warning: #f59e0b;
           --warning-soft: rgba(245, 158, 11, 0.18);
-          --shadow: 10px 10px 0 rgba(17, 17, 20, 0.9);
-          --shadow-soft: 3px 3px 0 rgba(17, 17, 20, 0.9);
-          --app-gradient: radial-gradient(1200px 600px at 8% -10%, rgba(31, 91, 255, 0.12), transparent 60%),
-            radial-gradient(900px 500px at 95% 10%, rgba(0, 0, 0, 0.08), transparent 70%),
+          --shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+          --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.08);
+          --app-gradient:
+            linear-gradient(rgba(99, 116, 139, 0.08) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(99, 116, 139, 0.08) 1px, transparent 1px),
             var(--bg);
         }
 

@@ -1,10 +1,10 @@
 [theme]
 # Lab notebook palette (light)
 base = "light"
-primaryColor = "#2f6af6"
-backgroundColor = "#f4f6fb"
+primaryColor = "#3156D4"
+backgroundColor = "#F3F6FA"
 secondaryBackgroundColor = "#ffffff"
-textColor = "#0f172a"
+textColor = "#07111F"
 font = "sans serif"
 
 [client]
