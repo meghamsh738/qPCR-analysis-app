@@ -89,14 +89,14 @@ st.markdown(
           --radius-sm: 8px;
           --radius-md: 8px;
           --radius-lg: 8px;
-          --bg: #F3F6FA;
+          --bg: #EDF2F8;
           --panel: #FFFFFF;
           --surface-2: #F7F9FC;
           --surface-3: #EEF3F8;
-          --border: #D6DEE8;
+          --border: rgba(15, 23, 42, 0.12);
           --border-2: #B8C4D3;
           --muted: #64748B;
-          --text: #07111F;
+          --text: #0F172A;
           --text-subtle: #334155;
           --accent: #3156D4;
           --accent-strong: #2447B8;
@@ -106,11 +106,11 @@ st.markdown(
           --success-soft: rgba(18, 183, 106, 0.16);
           --warning: #f59e0b;
           --warning-soft: rgba(245, 158, 11, 0.18);
-          --shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
-          --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.08);
+          --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 14px 34px rgba(15, 23, 42, 0.06);
+          --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04);
           --app-gradient:
-            linear-gradient(rgba(99, 116, 139, 0.08) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(99, 116, 139, 0.08) 1px, transparent 1px),
+            linear-gradient(rgba(15, 23, 42, 0.045) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
             var(--bg);
         }
 
@@ -136,7 +136,7 @@ st.markdown(
           font-family: var(--font-display);
           font-weight: 700;
           text-transform: uppercase;
-          letter-spacing: var(--tracking-display);
+          letter-spacing: 0;
         }
 
         h1{
@@ -160,7 +160,7 @@ st.markdown(
 
         [data-testid="stSidebar"]{
           background: var(--panel);
-          border-right: 2px solid var(--border);
+          border-right: 1px solid var(--border);
           color: var(--text);
         }
 

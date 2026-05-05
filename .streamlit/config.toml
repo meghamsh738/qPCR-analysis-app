@@ -2,9 +2,9 @@
 # Lab notebook palette (light)
 base = "light"
 primaryColor = "#3156D4"
-backgroundColor = "#F3F6FA"
+backgroundColor = "#EDF2F8"
 secondaryBackgroundColor = "#ffffff"
-textColor = "#07111F"
+textColor = "#0F172A"
 font = "sans serif"
 
 [client]
