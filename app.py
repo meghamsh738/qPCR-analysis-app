@@ -552,6 +552,134 @@ st.markdown(
             scroll-behavior: auto !important;
           }
         }
+
+        /* ChatGPT Images V2-inspired soft scientific workspace refresh. */
+        :root{
+          --bg: #f5f8fb;
+          --panel: #ffffff;
+          --surface-2: #f7fbff;
+          --surface-3: #edf6f4;
+          --border: #dbe6ef;
+          --border-2: #c8d6e4;
+          --muted: #708197;
+          --text: #102033;
+          --text-subtle: #40536a;
+          --accent: #3d74d8;
+          --accent-strong: #2758b8;
+          --accent-soft: rgba(61, 116, 216, 0.12);
+          --focus: rgba(61, 116, 216, 0.2);
+          --success-soft: rgba(20, 184, 166, 0.13);
+          --warning-soft: rgba(245, 158, 11, 0.15);
+          --radius-sm: 8px;
+          --radius-md: 10px;
+          --radius-lg: 10px;
+          --shadow: 0 18px 42px rgba(72, 92, 116, 0.12);
+          --shadow-soft: 0 1px 2px rgba(16, 32, 51, 0.06), 0 16px 36px rgba(72, 92, 116, 0.08);
+          --app-gradient:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(245, 248, 251, 0)),
+            linear-gradient(135deg, #f7fbff 0%, #eef7f4 48%, #f8fafc 100%);
+        }
+
+        html, body, [data-testid="stAppViewContainer"]{
+          background: var(--app-gradient) !important;
+        }
+
+        h1, h2, h3, h4, h5{
+          text-transform: none;
+          letter-spacing: 0;
+          color: var(--text);
+        }
+
+        [data-testid="stSidebar"]{
+          background: rgba(255, 255, 255, 0.94) !important;
+          border-right: 1px solid rgba(148, 163, 184, 0.28);
+          box-shadow: 10px 0 32px rgba(72, 92, 116, 0.08);
+        }
+
+        [data-testid="stSidebar"] [data-testid="stWidgetLabel"] > label,
+        [data-testid="stMetricLabel"],
+        .tutorial-top-card .kicker,
+        .tutorial-panel strong{
+          letter-spacing: 0.04em;
+          color: #148b83;
+        }
+
+        [data-testid="stMetric"],
+        .stDataFrame,
+        .stDataEditor,
+        .hero,
+        .setup-card,
+        .tutorial-panel,
+        .tutorial-top-card{
+          background: rgba(255, 255, 255, 0.94) !important;
+          border: 1px solid rgba(148, 163, 184, 0.28) !important;
+          border-radius: 10px !important;
+          box-shadow: var(--shadow-soft) !important;
+        }
+
+        .hero{
+          background:
+            linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(241, 248, 255, 0.92)),
+            linear-gradient(90deg, rgba(61, 116, 216, 0.08), rgba(20, 184, 166, 0.08)) !important;
+          padding: 20px 24px;
+        }
+
+        .hero h4{
+          text-transform: none;
+          letter-spacing: 0;
+          color: var(--text);
+        }
+
+        .pill{
+          background: rgba(255, 255, 255, 0.78);
+          border: 1px solid rgba(148, 163, 184, 0.34);
+          color: #334155;
+          letter-spacing: 0;
+        }
+
+        .stButton > button,
+        .stDownloadButton > button{
+          border: 1px solid rgba(148, 163, 184, 0.32);
+          border-radius: 999px;
+          background: #ffffff;
+          color: #102033;
+          font-family: var(--font-body);
+          letter-spacing: 0;
+          text-transform: none;
+          box-shadow: 0 1px 2px rgba(16, 32, 51, 0.05);
+        }
+
+        .stButton > button:hover,
+        .stDownloadButton > button:hover{
+          background: #f7fbff;
+          border-color: rgba(61, 116, 216, 0.34);
+          color: #2758b8;
+        }
+
+        button[data-testid="baseButton-primary"],
+        button[kind="primary"]{
+          background: linear-gradient(180deg, #4f8be8, #2f66ca) !important;
+          border: 1px solid #2f66ca !important;
+          color: #ffffff !important;
+          box-shadow: 0 12px 24px rgba(61, 116, 216, 0.22) !important;
+        }
+
+        input, textarea, select{
+          background: #fbfdff !important;
+          border: 1px solid #d8e4ee !important;
+          color: #102033 !important;
+          box-shadow: inset 0 1px 2px rgba(16, 32, 51, 0.04) !important;
+        }
+
+        input:focus, textarea:focus, select:focus{
+          border-color: rgba(61, 116, 216, 0.56) !important;
+          box-shadow: 0 0 0 3px rgba(61, 116, 216, 0.16) !important;
+        }
+
+        div[data-testid="stAlert"]{
+          border-radius: 10px;
+          border: 1px solid rgba(148, 163, 184, 0.28);
+        }
     </style>
     """,
     unsafe_allow_html=True,
