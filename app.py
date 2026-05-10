@@ -685,6 +685,231 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+st.markdown(
+    """
+    <style>
+      :root{
+        --font-display: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif !important;
+        --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif !important;
+        --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace !important;
+        --paper: #f4efe5 !important;
+        --paper-grid: rgba(20, 38, 32, 0.045) !important;
+        --ink: #142620 !important;
+        --muted: #68736d !important;
+        --nav: #053f32 !important;
+        --nav-deep: #002f26 !important;
+        --accent: #075c49 !important;
+        --surface: rgba(255, 252, 245, 0.92) !important;
+        --line: rgba(32, 48, 42, 0.12) !important;
+        --line-strong: rgba(32, 48, 42, 0.18) !important;
+      }
+
+      html,
+      body,
+      [data-testid="stAppViewContainer"]{
+        background:
+          linear-gradient(var(--paper-grid) 1px, transparent 1px),
+          linear-gradient(90deg, var(--paper-grid) 1px, transparent 1px),
+          var(--paper) !important;
+        background-size: 28px 28px !important;
+        color: var(--ink) !important;
+        font-family: var(--font-body) !important;
+        letter-spacing: 0 !important;
+      }
+
+      [data-testid="stAppViewContainer"] > .main{
+        background: transparent !important;
+      }
+
+      [data-testid="stSidebar"]{
+        background: linear-gradient(180deg, var(--nav), var(--nav-deep)) !important;
+        border-right: 1px solid rgba(255, 252, 245, 0.12) !important;
+        box-shadow: 18px 0 44px rgba(0, 47, 38, 0.16) !important;
+      }
+
+      [data-testid="stSidebar"] *{
+        color: rgba(255, 252, 245, 0.9) !important;
+        font-family: var(--font-body) !important;
+      }
+
+      [data-testid="stSidebar"] :is(p, span, small, label){
+        color: rgba(255, 252, 245, 0.72) !important;
+      }
+
+      .block-container{
+        padding-top: 1.1rem !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+        max-width: 1500px !important;
+      }
+
+      h1, h2, h3, h4, h5, h6,
+      .stMarkdown strong{
+        color: var(--ink) !important;
+        font-family: var(--font-display) !important;
+        font-weight: 700 !important;
+        letter-spacing: 0 !important;
+      }
+
+      p, li, label, span, div{
+        font-family: var(--font-body) !important;
+      }
+
+      code, pre,
+      [data-testid="stDataFrame"] *,
+      [data-testid="stDataEditor"] *,
+      .dataframe *,
+      .metric-card,
+      .mono,
+      .result-chip{
+        font-family: var(--font-mono) !important;
+      }
+
+      .hero,
+      .app-card,
+      .setup-card,
+      .section-card,
+      .metric-card,
+      .guide-card,
+      div[data-testid="stMetric"],
+      div[data-testid="stExpander"],
+      div[data-testid="stDataFrame"],
+      div[data-testid="stDataEditor"]{
+        background: var(--surface) !important;
+        border: 1px solid var(--line) !important;
+        border-radius: 10px !important;
+        box-shadow: 0 8px 22px rgba(20, 38, 32, 0.06) !important;
+        color: var(--ink) !important;
+      }
+
+      .hero{
+        padding: 1.05rem 1.2rem !important;
+      }
+
+      .hero h1{
+        font-size: clamp(1.65rem, 2.2vw, 2.4rem) !important;
+      }
+
+      .hero p,
+      .app-card p,
+      .guide-card p{
+        color: var(--muted) !important;
+      }
+
+      .accent-line,
+      .status-dot,
+      .step-active{
+        background: var(--accent) !important;
+      }
+
+      .stButton > button,
+      [data-testid="stBaseButton-secondary"],
+      [data-testid="stBaseButton-tertiary"],
+      .stDownloadButton > button{
+        background: rgba(255, 252, 245, 0.72) !important;
+        border: 1px solid var(--line-strong) !important;
+        border-radius: 9px !important;
+        color: var(--ink) !important;
+        box-shadow: none !important;
+        font-family: var(--font-body) !important;
+        font-weight: 600 !important;
+      }
+
+      .stButton > button:hover,
+      .stDownloadButton > button:hover{
+        border-color: rgba(7, 92, 73, 0.28) !important;
+        color: var(--accent) !important;
+      }
+
+      .stButton > button[kind="primary"],
+      [data-testid="stBaseButton-primary"]{
+        background: var(--accent) !important;
+        border-color: rgba(0, 47, 38, 0.18) !important;
+        color: #fffdf7 !important;
+        box-shadow: 0 10px 20px rgba(7, 92, 73, 0.18) !important;
+      }
+
+      input,
+      textarea,
+      select,
+      div[data-baseweb="select"] > div,
+      div[data-baseweb="input"] > div,
+      div[data-baseweb="textarea"] > div{
+        background: rgba(255, 252, 245, 0.9) !important;
+        border-color: var(--line-strong) !important;
+        color: var(--ink) !important;
+        border-radius: 9px !important;
+        box-shadow: none !important;
+      }
+
+      div[data-baseweb="tab-list"]{
+        gap: 0.35rem !important;
+        border-bottom: 1px solid var(--line) !important;
+      }
+
+      button[data-baseweb="tab"]{
+        background: rgba(255, 252, 245, 0.68) !important;
+        border: 1px solid var(--line-strong) !important;
+        border-radius: 9px 9px 0 0 !important;
+        color: var(--ink) !important;
+        padding: 0.45rem 0.75rem !important;
+      }
+
+      button[data-baseweb="tab"][aria-selected="true"]{
+        background: var(--accent) !important;
+        color: #fffdf7 !important;
+      }
+
+      div[data-testid="stMetricValue"]{
+        color: var(--ink) !important;
+        font-family: var(--font-mono) !important;
+      }
+
+      div[data-testid="stMetricLabel"]{
+        color: var(--muted) !important;
+        font-family: var(--font-mono) !important;
+        letter-spacing: 0.04em !important;
+        text-transform: uppercase !important;
+      }
+
+      [data-testid="stDataFrame"] thead tr th,
+      [data-testid="stDataEditor"] thead tr th{
+        background: rgba(7, 92, 73, 0.08) !important;
+        color: var(--ink) !important;
+      }
+
+      [data-testid="stDataFrame"] tbody tr,
+      [data-testid="stDataEditor"] tbody tr{
+        background: rgba(255, 252, 245, 0.8) !important;
+      }
+
+      hr{
+        border-color: var(--line) !important;
+      }
+
+      *{
+        scrollbar-width: thin;
+        scrollbar-color: rgba(7, 92, 73, 0.24) transparent;
+      }
+
+      *::-webkit-scrollbar{
+        width: 7px;
+        height: 7px;
+      }
+
+      *::-webkit-scrollbar-track{
+        background: transparent;
+      }
+
+      *::-webkit-scrollbar-thumb{
+        background: rgba(7, 92, 73, 0.22);
+        border-radius: 999px;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # ------------- Setup state -------------
 stored_settings = load_settings()
 defaults = default_paths()
