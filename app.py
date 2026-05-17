@@ -89,19 +89,19 @@ st.markdown(
           --radius-sm: 8px;
           --radius-md: 8px;
           --radius-lg: 8px;
-          --bg: #EDF2F8;
-          --panel: #FFFFFF;
-          --surface-2: #F7F9FC;
-          --surface-3: #EEF3F8;
-          --border: rgba(15, 23, 42, 0.12);
-          --border-2: #B8C4D3;
-          --muted: #64748B;
-          --text: #0F172A;
-          --text-subtle: #334155;
-          --accent: #3156D4;
-          --accent-strong: #2447B8;
-          --accent-soft: rgba(49, 86, 212, 0.12);
-          --focus: rgba(49, 86, 212, 0.22);
+          --bg: #f4efe5;
+          --panel: rgba(255, 252, 245, 0.94);
+          --surface-2: rgba(255, 252, 245, 0.84);
+          --surface-3: #efe7d9;
+          --border: rgba(32, 48, 42, 0.14);
+          --border-2: rgba(32, 48, 42, 0.22);
+          --muted: #68736d;
+          --text: #142620;
+          --text-subtle: #4f5f58;
+          --accent: #075c49;
+          --accent-strong: #053f32;
+          --accent-soft: rgba(7, 92, 73, 0.12);
+          --focus: rgba(7, 92, 73, 0.18);
           --success: #12b76a;
           --success-soft: rgba(18, 183, 106, 0.16);
           --warning: #f59e0b;
@@ -109,8 +109,8 @@ st.markdown(
           --shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 14px 34px rgba(15, 23, 42, 0.06);
           --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04);
           --app-gradient:
-            linear-gradient(rgba(15, 23, 42, 0.045) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+            linear-gradient(rgba(20, 38, 32, 0.045) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(20, 38, 32, 0.04) 1px, transparent 1px),
             var(--bg);
         }
 
@@ -159,20 +159,20 @@ st.markdown(
         }
 
         [data-testid="stSidebar"]{
-          background: var(--panel);
-          border-right: 1px solid var(--border);
-          color: var(--text);
+          background: linear-gradient(180deg, #053f32, #002f26);
+          border-right: 1px solid rgba(255, 252, 245, 0.12);
+          color: rgba(255, 252, 245, 0.92);
         }
 
         [data-testid="stSidebar"] h1,
         [data-testid="stSidebar"] h2,
         [data-testid="stSidebar"] h3,
         [data-testid="stSidebar"] h4{
-          color: var(--text);
+          color: rgba(255, 252, 245, 0.94);
         }
 
         [data-testid="stSidebar"] [data-testid="stWidgetLabel"] > label{
-          color: var(--text);
+          color: rgba(255, 252, 245, 0.94);
           font-family: var(--font-mono);
           font-size: 12px;
           font-weight: 600;
@@ -185,11 +185,11 @@ st.markdown(
         [data-testid="stSidebar"] .stMarkdown p,
         [data-testid="stSidebar"] .stMarkdown span,
         [data-testid="stSidebar"] .stMarkdown li{
-          color: var(--text-subtle);
+          color: rgba(255, 252, 245, 0.72);
         }
 
         [data-testid="stSidebar"] .stSlider > div > div > span{
-          color: var(--text);
+          color: rgba(255, 252, 245, 0.94);
         }
 
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"]{
@@ -211,7 +211,7 @@ st.markdown(
         }
 
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:has(input:checked){
-          border-color: rgba(31, 91, 255, 0.45);
+          border-color: rgba(255, 252, 245, 0.36);
           background: var(--accent-soft);
           box-shadow: 0 0 0 2px var(--focus);
         }
@@ -904,6 +904,107 @@ st.markdown(
       *::-webkit-scrollbar-thumb{
         background: rgba(7, 92, 73, 0.22);
         border-radius: 999px;
+      }
+
+      h1, h2, h3, h4, h5, h6,
+      p, li, label, span, div,
+      .hero, .app-card, .setup-card, .section-card,
+      .metric-card, .guide-card,
+      [data-testid="stMarkdownContainer"],
+      [data-testid="stHorizontalBlock"],
+      [data-testid="column"]{
+        min-width: 0 !important;
+        overflow-wrap: anywhere !important;
+      }
+
+      .stButton > button,
+      .stDownloadButton > button,
+      button[data-baseweb="tab"],
+      [data-testid="stBaseButton-secondary"],
+      [data-testid="stBaseButton-tertiary"],
+      [data-testid="stBaseButton-primary"]{
+        min-width: 0 !important;
+        max-width: 100% !important;
+        white-space: normal !important;
+        line-height: 1.2 !important;
+      }
+
+      [data-testid="stDataFrame"],
+      [data-testid="stDataEditor"],
+      [data-testid="stTable"]{
+        max-width: 100% !important;
+        overflow: auto !important;
+      }
+
+      [data-testid="stDataFrame"] table,
+      [data-testid="stDataEditor"] table,
+      [data-testid="stTable"] table{
+        table-layout: fixed !important;
+      }
+
+      header[data-testid="stHeader"],
+      [data-testid="stToolbar"],
+      [data-testid="stDecoration"],
+      [data-testid="stStatusWidget"],
+      [data-testid="stMainMenu"],
+      footer{
+        display: none !important;
+        visibility: hidden !important;
+      }
+
+      .stApp,
+      [data-testid="stApp"],
+      [data-testid="stMain"],
+      [data-testid="stAppViewContainer"],
+      .main{
+        background:
+          linear-gradient(var(--paper-grid) 1px, transparent 1px),
+          linear-gradient(90deg, var(--paper-grid) 1px, transparent 1px),
+          var(--paper) !important;
+        background-size: 28px 28px !important;
+      }
+
+      [data-testid="stIconMaterial"]{
+        width: 0 !important;
+        min-width: 0 !important;
+        max-width: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        color: transparent !important;
+        font-size: 0 !important;
+        line-height: 0 !important;
+        overflow: hidden !important;
+      }
+
+      [data-testid="stSidebar"] div[role="radiogroup"] label,
+      [data-testid="stSidebar"] div[data-baseweb="select"] > div,
+      [data-testid="stSidebar"] div[data-baseweb="input"] > div,
+      [data-testid="stSidebar"] div[data-baseweb="textarea"] > div,
+      [data-testid="stSidebar"] input,
+      [data-testid="stSidebar"] textarea{
+        background: rgba(255, 252, 245, 0.88) !important;
+        border-color: rgba(255, 252, 245, 0.26) !important;
+        color: var(--ink) !important;
+      }
+
+      [data-testid="stSidebar"] div[role="radiogroup"] label *,
+      [data-testid="stSidebar"] div[data-baseweb="select"] *,
+      [data-testid="stSidebar"] div[data-baseweb="input"] *,
+      [data-testid="stSidebar"] div[data-baseweb="textarea"] *,
+      [data-testid="stSidebar"] input::placeholder,
+      [data-testid="stSidebar"] textarea::placeholder{
+        color: var(--ink) !important;
+      }
+
+      [data-testid="stSidebar"] .stExpander,
+      [data-testid="stSidebar"] div[data-testid="stExpander"]{
+        background: rgba(255, 252, 245, 0.08) !important;
+        border: 1px solid rgba(255, 252, 245, 0.18) !important;
+        border-radius: 9px !important;
+      }
+
+      [data-testid="stSidebar"] div[data-testid="stExpander"] p{
+        color: rgba(255, 252, 245, 0.94) !important;
       }
     </style>
     """,
