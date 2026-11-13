@@ -1,179 +1,72 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron')
-const { spawn } = require('child_process')
-const fs = require('fs')
-const net = require('net')
-const path = require('path')
-
-const isDev = !app.isPackaged
-const rootDir = path.join(__dirname, '..', '..')
-const iconPath = path.join(__dirname, '..', 'build', 'icon.png')
-
-const SERVER_PORT = 8501
-let serverProcess = null
-
-const ensureDirectories = (paths) => {
-  const targets = Object.values(paths || {}).filter((val) => typeof val === 'string' && val.trim())
-  targets.forEach((target) => fs.mkdirSync(target, { recursive: true }))
+// This branch's desktop shell is isolated from the current standalone installation.
+const { app, BrowserWindow, dialog } = require('electron')
+const { spawn, execFileSync } = require('node:child_process')
+const fs = require('node:fs')
+const path = require('node:path')
+const net = require('node:net')
+const root = path.resolve(__dirname, '../..')
+const developmentRoot = path.resolve(root, '../..')
+const runtime = !app.isPackaged && path.basename(developmentRoot) === 'easylab-next'
+  ? path.join(developmentRoot, 'runtime')
+  : path.join(app.getPath('documents'), 'EasyLab Next', 'runtime')
+const profile = path.join(runtime, 'profiles', 'qpcr-analysis')
+// Fixed isolated paths: inherited stable profile/data overrides are deliberately ignored.
+for (const p of [runtime, profile]) {
+  let existing = p
+  while (!fs.existsSync(existing)) existing = path.dirname(existing)
+  if (fs.realpathSync(existing) !== existing) throw new Error('Next storage cannot use symbolic links')
 }
-
-const getDefaultPaths = () => {
-  const base = path.join(app.getPath('documents'), 'Easylab', 'qPCR Analysis')
-  return {
-    dataPath: path.join(base, 'data'),
-    attachmentsPath: path.join(base, 'attachments'),
-    exportsPath: path.join(base, 'exports'),
-    syncPath: path.join(base, 'sync'),
-  }
-}
-
-const waitForPort = (port, timeoutMs = 10000) => new Promise((resolve, reject) => {
+fs.mkdirSync(profile, { recursive: true })
+app.setName('EasyLab Next qPCR Analysis')
+app.setPath('userData', profile)
+app.setPath('sessionData', path.join(profile, 'session'))
+app.setPath('logs', path.join(profile, 'logs'))
+const port = 18501
+let child
+let window
+const free = () => new Promise((resolve, reject) => {
+  const probe = net.createServer()
+  probe.once('error', reject)
+  probe.listen(port, '127.0.0.1', () => probe.close(resolve))
+})
+const wait = () => new Promise((resolve, reject) => {
   const start = Date.now()
   const check = () => {
-    const socket = net.createConnection({ port }, () => {
-      socket.end()
-      resolve(true)
-    })
-    socket.on('error', () => {
+    if (!child || child.exitCode !== null) return reject(new Error('Next Python server stopped'))
+    const socket = net.createConnection({ host: '127.0.0.1', port })
+    socket.once('connect', () => {
       socket.destroy()
-      if (Date.now() - start > timeoutMs) reject(new Error('timeout'))
-      else setTimeout(check, 400)
+      try {
+        const output = process.platform === 'win32'
+          ? execFileSync('powershell.exe', ['-NoProfile','-Command',`(Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort ${port} -State Listen).OwningProcess`], {encoding:'utf8',timeout:5000})
+          : execFileSync('/usr/sbin/lsof', ['-nP',`-tiTCP:${port}`,'-sTCP:LISTEN'], {encoding:'utf8',timeout:5000})
+        const owners = output.trim().split(/\s+/).filter(Boolean).map(Number)
+        if (owners.length !== 1 || owners[0] !== child.pid) throw new Error('The port belongs to another process; Next refused to open it')
+        resolve()
+      } catch(error) { reject(error) }
     })
+    socket.once('error', () => { socket.destroy(); Date.now()-start > 30000 ? reject(new Error('Next server timed out')) : setTimeout(check, 200) })
   }
   check()
 })
-
-const resolvePythonCandidates = () => {
-  const candidates = []
-  if (process.env.APP_PYTHON_PATH) candidates.push(process.env.APP_PYTHON_PATH)
-  candidates.push('python', 'python3', 'py')
-  return Array.from(new Set(candidates))
-}
-
-const spawnServer = async () => {
-  if (serverProcess) return
-  const appPath = isDev ? path.join(rootDir, 'app.py') : path.join(process.resourcesPath, 'app.py')
-  const cwd = isDev ? rootDir : process.resourcesPath
-
-  const env = {
-    ...process.env,
-    PYTHONPATH: cwd,
-  }
-
-  const candidates = resolvePythonCandidates()
-  for (const candidate of candidates) {
-    try {
-      const proc = spawn(candidate, [
-        '-m',
-        'streamlit',
-        'run',
-        appPath,
-        '--server.headless',
-        'true',
-        '--server.port',
-        String(SERVER_PORT),
-        '--server.address',
-        '127.0.0.1',
-      ], {
-        cwd,
-        env,
-        stdio: 'ignore',
-        windowsHide: true,
-      })
-
-      const ready = await Promise.race([
-        waitForPort(SERVER_PORT, 8000),
-        new Promise((_, reject) => proc.once('error', reject)),
-      ])
-
-      if (ready) {
-        serverProcess = proc
-        proc.on('exit', () => {
-          serverProcess = null
-        })
-        return
-      }
-    } catch (err) {
-      continue
-    }
-  }
-
-  dialog.showMessageBox({
-    type: 'warning',
-    title: 'Server not started',
-    message: 'The qPCR analysis server could not start. Install Python 3.10+ or set APP_PYTHON_PATH, then restart.',
-  })
-}
-
-const stopServer = () => {
-  if (serverProcess) {
-    serverProcess.kill()
-    serverProcess = null
-  }
-}
-
-const createWindow = () => {
-  const win = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    minWidth: 1024,
-    minHeight: 640,
-    resizable: true,
-    backgroundColor: '#0F172A',
-    title: app.getName(),
-    icon: iconPath,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-  })
-
-  const url = `http://127.0.0.1:${SERVER_PORT}`
-  win.loadURL(url)
-}
-
 app.whenReady().then(async () => {
-  await spawnServer()
-  createWindow()
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  })
-})
-
-app.on('before-quit', () => {
-  stopServer()
-})
-
-app.on('window-all-closed', () => {
-  stopServer()
-  if (process.platform !== 'darwin') app.quit()
-})
-
-ipcMain.handle('select-directory', async (_event, options = {}) => {
-  const { title, defaultPath } = options
-  const result = await dialog.showOpenDialog({
-    title: title || 'Select folder',
-    defaultPath,
-    properties: ['openDirectory', 'createDirectory'],
-  })
-  if (result.canceled || result.filePaths.length === 0) return null
-  return result.filePaths[0]
-})
-
-ipcMain.handle('ensure-directories', async (_event, paths) => {
   try {
-    ensureDirectories(paths)
-    return { ok: true }
-  } catch (err) {
-    return { ok: false, message: err instanceof Error ? err.message : String(err) }
+    await free()
+    const source = app.isPackaged ? process.resourcesPath : root
+    const python = path.join(source, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python')
+    if (!fs.existsSync(python)) throw new Error('Create this Next checkout’s Python environment first, or launch qPCR through EasyLab Next Suite. No existing installation was used.')
+    const env = { ...process.env, EASYLAB_RUNTIME_ROOT: runtime, EASYLAB_DATA_PATH:path.join(runtime,'data','qPCR Analysis','data'), EASYLAB_SETTINGS_PATH:path.join(runtime,'settings','qpcr-analysis'), EASYLAB_EXPORTS_PATH:path.join(runtime,'data','qPCR Analysis','exports'), MPLCONFIGDIR:path.join(runtime,'cache','matplotlib'), PYTHONPATH:source, PYTHONNOUSERSITE:'1' }
+    child = spawn(python, [path.join(source, 'run_next.py')], { cwd:source, env, stdio:'ignore', windowsHide:true })
+    child.on('error', () => {})
+    await wait()
+    window = new BrowserWindow({width:1400,height:900,minWidth:600,minHeight:500,title:'EasyLab Next · qPCR',webPreferences:{contextIsolation:true,nodeIntegration:false,sandbox:true}})
+    window.webContents.setWindowOpenHandler(() => ({action:'deny'}))
+    window.webContents.on('will-navigate', (event, url) => { if (!url.startsWith(`http://127.0.0.1:${port}/`)) event.preventDefault() })
+    await window.loadURL(`http://127.0.0.1:${port}`)
+  } catch (error) {
+    dialog.showErrorBox('EasyLab Next could not start', error.message)
+    app.quit()
   }
 })
-
-ipcMain.handle('get-app-info', () => ({
-  name: app.getName(),
-  version: app.getVersion(),
-  platform: process.platform,
-}))
-
-ipcMain.handle('get-default-paths', () => getDefaultPaths())
+app.on('before-quit', () => { if (child && child.exitCode === null) child.kill() })
+app.on('window-all-closed', () => app.quit())

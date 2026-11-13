@@ -1,27 +1,22 @@
 import { defineConfig } from '@playwright/test'
+import path from 'node:path'
 
-const isWindows = process.platform === 'win32'
-const pythonCmd = isWindows ? 'python' : './.venv/bin/python'
-
+const parentWorkspace = path.resolve(__dirname, '../..')
+const testRuntime = path.basename(parentWorkspace) === 'easylab-next'
+  ? path.join(parentWorkspace, 'runtime', 'browser-tests')
+  : path.join(__dirname, '.next-runtime', 'easylab-next', 'browser-tests')
+const python = process.platform === 'win32' ? '.venv/Scripts/python.exe' : '.venv/bin/python'
 export default defineConfig({
   testDir: './tests',
   timeout: 120000,
-  expect: {
-    timeout: 15000,
-    toHaveScreenshot: { animations: 'disabled', caret: 'hide' },
-  },
-  use: {
-    baseURL: 'http://127.0.0.1:8501',
-    viewport: { width: 1440, height: 900 },
-    colorScheme: 'light',
-    reducedMotion: 'reduce',
-    video: 'retain-on-failure',
-  },
+  expect: { timeout: 20000 },
+  use: { baseURL: 'http://127.0.0.1:18501', viewport: { width: 1400, height: 900 }, colorScheme: 'light', reducedMotion: 'reduce' },
   reporter: [['list']],
   webServer: {
-    command: `E2E=1 ${pythonCmd} -m streamlit run app.py --server.headless true --server.port 8501 --server.address 127.0.0.1`,
-    url: 'http://127.0.0.1:8501',
-    reuseExistingServer: !process.env.CI,
+    command: `${python} run_next.py`,
+    env: { EASYLAB_RUNTIME_ROOT: testRuntime, STREAMLIT_BROWSER_GATHER_USAGE_STATS:'false' },
+    url: 'http://127.0.0.1:18501/_stcore/health',
+    reuseExistingServer: false,
     timeout: 120000,
   },
 })

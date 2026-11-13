@@ -1,54 +1,33 @@
 import { test, expect } from '@playwright/test'
 
-async function snapSection(page, headingRegex: RegExp, filename: string, scrollOffset = 0) {
-  const banner = page.getByRole('banner')
-  const heading = page.getByRole('heading', { name: headingRegex })
-  await expect(heading).toBeVisible()
-  await heading.scrollIntoViewIfNeeded()
-  if (scrollOffset) {
-    await page.evaluate((offset) => window.scrollBy(0, offset), scrollOffset)
-  }
-  await page.waitForTimeout(600)
-  // Streamlit's top toolbar includes a "Running..." indicator that can animate and cause
-  // tiny diffs between consecutive screenshots; mask it for stable visual snapshots.
-  await expect(page).toHaveScreenshot(filename, { mask: [banner] })
-}
-
-test('example workflow screenshots', async ({ page }) => {
+test('practice review keeps its step and retains explicit sample identities', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
-  await page.addStyleTag({ content: '* { transition: none !important; animation: none !important; }' })
-  const banner = page.getByRole('banner')
-  const setupHeading = page.getByRole('heading', { name: /First-run setup/i })
-  try {
-    await setupHeading.waitFor({ timeout: 8000 })
-    await page.getByRole('button', { name: 'Finish setup' }).click()
-  } catch {
-    // Setup already completed.
-  }
+  await expect(page).toHaveTitle(/EasyLab Next/)
+  await page.getByRole('button', { name:'Open practice experiment', exact:true }).click()
+  await page.getByRole('button', { name:'Confirm columns', exact:true }).click()
+  await expect(page.getByRole('heading',{name:'Map samples',exact:true})).toBeVisible()
+  await page.getByRole('button', { name:'Confirm sample map', exact:true }).click()
+  await expect(page.getByRole('heading',{name:'Review wells',exact:true})).toBeVisible()
+  await page.getByRole('button', { name:'Confirm well review', exact:true }).click()
+  await expect(page.getByRole('heading',{name:'Methods',exact:true})).toBeVisible()
+  // No references/calibrators selected: the method must explain missing requirements.
+  await page.getByRole('button', { name:'Confirm methods and standards', exact:true }).click()
+  await page.getByRole('button', { name:'Calculate reviewed results', exact:true }).click()
+  await expect(page.getByRole('heading',{name:'Results',exact:true})).toBeVisible()
+  await expect(page.getByText('0 eligible sample–assay endpoints of 12. Counts are method-specific.',{exact:true})).toBeVisible()
+  await expect(page.getByTestId('stException')).toHaveCount(0)
+  expect(errors).toEqual([])
+})
 
-  const mainHeading = page.getByTestId('stMainBlockContainer').getByRole('heading', { name: 'qPCR Analysis' })
-  await expect(mainHeading.first()).toBeVisible({ timeout: 60000 })
-  await expect(page.getByText('Wells loaded')).toBeVisible()
-
-  // Give Streamlit time to settle (tables render async); keep this short to avoid flakiness.
-  await page.waitForTimeout(1500)
-
-  // Avoid fullPage screenshots here; off-screen components can still be rendering and cause
-  // subtle diffs between consecutive captures. Section snapshots below cover the full flow.
-  await expect(page).toHaveScreenshot('example_run.png', { mask: [banner] })
-
-  await snapSection(page, /1\)\s*Review & clean wells/i, 'overview.png')
-  await snapSection(page, /2\)\s*Replicate averages/i, 'replicates.png')
-  await snapSection(page, /3\)\s*Standards map/i, 'standards.png')
-  const showToggle = page.getByLabel('Show curve plots')
-  if (await showToggle.isVisible()) {
-    if (!(await showToggle.isChecked())) {
-      await showToggle.check()
-      await page.waitForTimeout(400)
-    }
-  }
-  await page.waitForTimeout(800)
-  await snapSection(page, /4\)\s*Fit standard curves/i, 'curves.png', 720)
-  await snapSection(page, /6\)\s*Normalize to reference gene/i, 'quant_normalize.png')
-  await snapSection(page, /7\)\s*Export/i, 'export.png')
+test('narrow-window collapsed navigation keeps keyboard focus visible', async ({ page }) => {
+  await page.setViewportSize({width:768,height:900})
+  await page.goto('/')
+  await expect(page.getByRole('button',{name:'Open practice experiment',exact:true})).toBeVisible()
+  await page.keyboard.press('Tab')
+  const bounds = await page.locator(':focus').boundingBox()
+  expect(bounds).not.toBeNull()
+  expect(bounds!.x).toBeGreaterThanOrEqual(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(768)
 })

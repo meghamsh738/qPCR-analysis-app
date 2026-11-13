@@ -19,3 +19,6 @@ desktop/dist/
 .idea/
 .DS_Store
 .venv
+
+# Isolated browser-test storage outside the multi-module Next worktree
+.next-runtime/

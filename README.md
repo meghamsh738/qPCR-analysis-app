@@ -1,109 +1,44 @@
-# qPCR Analysis App
+# EasyLab Next · qPCR Analysis
 
-Streamlit dashboard for quickly reviewing qPCR plates end-to-end – from pasted wells tables through replicate QC, standard curve fitting, absolute quantity estimation, ΔΔCt normalisation, and Excel export. The app is designed to work directly from the tables produced by most qPCR instruments, so you can validate a run without pre-processing in spreadsheets.
+Separate development version for the approved EasyLab improvement plan. The existing Suite, standalone apps and original checkouts are preserved. This branch has not been released or installed over an existing app.
 
-License: All Rights Reserved.
+## Run locally
 
-Status: this Streamlit app is the canonical version. A prior React/FastAPI experiment that lacked chart export has been removed to keep the repo lean.
+From this Next module checkout:
 
-## Highlights
-- Paste CSV/TSV/Excel-style well tables or vendor exports; delimiter detection and case-insensitive column matching keep the input flexible.
-- Automatically reshapes vendor-specific columns, derives replicate numbers, and flags negative or control wells.
-- Per-gene views surface replicate statistics (mean Cq, SD, ΔCq), standard curve plots with slope/intercept/R²/efficiency, and concentration back-calculations.
-- Calibrator-aware normalisation plus relative expression via 2^-ΔΔCt with selectable reference genes and calibrator pools.
-- One-click Excel export (`qpcr_results.xlsx`) that bundles cleaned wells, replicate summaries, standard curve points & plots, quantities, and relative-expression tables.
-- Includes `mock_wells.csv` so you can try the workflow without real instrument output.
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python run_next.py
+```
 
-## Screenshot
+Open `http://127.0.0.1:18501`. The launcher refuses an occupied port. In the Next worktree, data, settings and exports live under `easylab-next/runtime`, separately from the existing applications. `EASYLAB_DATA_PATH`, `EASYLAB_SETTINGS_PATH` and `EASYLAB_EXPORTS_PATH` must remain inside the separate `EASYLAB_RUNTIME_ROOT`. No HOME override or copied account/profile is needed. The Suite's own launcher uses reserved Next ports and isolated profiles.
 
-Example run using the bundled `sample-data/qpcr_example.csv` (select **Example** in the sidebar) and default options (refreshed Dec 28, 2025; lab notebook neo-brutalist styling applied):
+Use the **Open practice experiment** button for fictional data, or import CSV/TSV/TXT/XLSX Results files. Explicitly confirm columns, identities, retained wells and methods. Imported rows and original files remain available in the experiment package.
 
-![qPCR analysis dashboard screenshot](screenshots/example_run.png)
+## Workflow
 
-Additional views from the full workflow:
+1. **Import:** preview original rows and confirm columns. Native Results headers and separate sample-information tables are supported.
+2. **Map samples:** confirm biological SampleId, Group and optional PairId/Tissue/Batch. Default identities include plate, label and supplied context. Explicit IDs can link the same sample across target/reference plates; conflicting metadata is held for review.
+3. **Review wells:** retain undetermined/excluded observations, give well-specific exclusion reasons, and inspect technical replicate summaries. Warnings do not automatically remove observations.
+4. **Methods:** review assay/plate-specific standards, select references and calibrator samples, and explicitly review efficiency and range assumptions. The named personal preset starts at 16384 AU with fourfold dilutions. Non-contiguous standard selections remain supported.
+5. **Results:** compare plate-specific standard-curve ratios, standard-curve calibrator-relative fold changes and ΔΔCq fold changes. Technical Cqs are averaged before biological summaries; calibrator samples have equal weight. Missing or withheld inputs remain visible with reasons.
+6. **Graphs & statistics:** biological dots and means, optional uncertainty, editable labels/colours/order/dimensions and linear/log axes. Welch, explicitly paired tests and one-way ANOVA with pooled-variance comparisons use selected families and Holm adjustment. Axes do not transform statistical values. Multigroup repeated-measures and two-factor designs are outside this feature set.
+7. **Save & export:** versioned `.easylab.json` packages, local saves, CSV/TSV, Excel, PNG/SVG/PDF figures and selected-results PDF reports. Save a package to preserve sources, decisions, results and figure settings. New experiments retain display/recipe preferences but require new scientific decisions.
 
-![Overview](screenshots/overview.png)
-![Replicates](screenshots/replicates.png)
-![Standards](screenshots/standards.png)
-![Curves](screenshots/curves.png)
-![Quant + Normalize](screenshots/quant_normalize.png)
-![Export](screenshots/export.png)
+The **Assay-by-assay manual review** Excel option preserves compact lower-case assay sheets, standards/curves, retained technical Cqs and a `normalised` sheet. It contains live formulas with initial cached values. Excel edits are separate from the app experiment. To return edits to the app, export a reviewed flat well table and confirm mappings; directly importing this review workbook is deliberately rejected so its original raw block cannot overwrite reviewed changes. Formula editing requires a compatible spreadsheet engine; native Excel recalculation and installed desktop behavior are separate verification steps.
 
-## Tests & screenshots
-```bash
-# Unit tests (core calculations)
-./.venv/bin/python -m pytest
+## Development checks
 
-# E2E + screenshot refresh
-npm install
-npx playwright install --with-deps chromium
+```sh
+.venv/bin/python -m pip install pytest==8.4.2
+.venv/bin/python -m pytest -q
+npm ci
 npm run test:e2e
 ```
 
-## Quick Start
-1. **Prerequisites:** Python 3.9+ and `pip`. Creating a virtual environment is recommended.
-2. **Install dependencies**
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-3. **Run the dashboard**
-   ```bash
-   streamlit run app.py
-   ```
-4. Streamlit prints a local URL (typically http://localhost:8501). Open it in your browser.
+Browser tests start their own isolated server on 18501 and refuse an existing listener. Stop only a server you own before running them. Tests use fictional fixtures and temporary data. `qpcr_core.py` remains for legacy regression checks; the Next app uses `qpcr_workflow.py` and `qpcr_statistics.py`.
 
-## Desktop Installer (Windows)
-From the repo root (next to this README):
+The standalone Electron shell has a distinct Next name/profile and uses this checkout's environment in development. Packaging/runtime validation on macOS and Windows remains separate from the source/browser checks. No replacement of an installed app is implied.
 
-```bash
-npm install
-npm run build:electron
-```
-
-The installer is generated in `desktop/dist/` as an `.exe` (NSIS). On first run, the app asks for storage folders and creates them for you.
-
-Notes:
-- The packaged app expects Python 3.10+ available on PATH to run the Streamlit server. You can set `APP_PYTHON_PATH` to a specific Python executable if needed.
-- The installer is unsigned unless code-signing credentials are configured.
-
-## Using the Dashboard
-1. **Input:** Choose **Example**, **Upload file**, or **Paste table** in the sidebar. Example loads `sample-data/qpcr_example.csv`.
-2. **Column mapping:** Confirm which columns correspond to Label/Cq/Replicate (helps when vendor exports don’t use standard headers).
-3. **Review & clean wells:** Toggle **keep** to drop bad replicates; outliers by ΔCq are flagged.
-4. **Quantification mode:** Pick **Absolute (std curve)** for standard-curve based quantities, or **ΔΔCt (relative)** for fold-change.
-5. **Export:** Download an Excel workbook that bundles cleaned wells, summaries, curve points/plots (if applicable), and normalized outputs.
-
-Use the download button at the bottom of the page to collect all derived tables (plus rendered standard-curve plots) into a single Excel workbook for record keeping.
-
-## Data format & quick AI helper
-- Best-fit columns (CSV/TSV/Excel): `Plate, Well, Gene, Type, Label, Replicate, Cq`. Optional extras are ignored safely. See `sample-data/qpcr_example.csv`.
-- To reshape quickly, use: [ChatGPT](https://chat.openai.com/), [Gemini](https://gemini.google.com/app), [Grok](https://grok.com/).
-- Prompt: "Convert my table to CSV with headers: Plate, Well, Gene, Type, Label, Replicate, Cq. Keep my data, no invented rows, output UTF-8 CSV text only."
-- Save as `qpcr_example.csv` (any name) and upload/paste. Visual helper: `screenshots/data-format-helper.svg`.
-
-## Tips
-- Paste data exactly as exported; the app trims whitespace, harmonises case, and interprets common "NA"/"Undetermined" tokens automatically.
-- Keep at least two standard levels with known concentrations per gene to enable curve fitting.
-- When experimenting, use the **Example** input source to load `sample-data/qpcr_example.csv` (includes standards and samples).
-- If you only want replicate QC (no standards), `mock_wells.csv` is a minimal wells table you can paste/upload.
-
-## How calculations are done
-1) **Clean & outliers** – ΔCq per gene/label is median‐based; wells with ΔCq above the sidebar threshold are flagged. If a well is unchecked, its Cq becomes NaN.  
-2) **Replicate collapse** – Wells sharing Plate/Well/Gene/Type/Label are averaged (mean Cq) before any downstream math. Extra columns keep the first value.  
-3) **Standards** – For each gene (or Gene×Plate if selected):  
-   - log10(conc) from the standards map vs mean Cq → linear fit (slope, intercept).  
-   - R² and efficiency = (10^(−1/slope) − 1)·100.  
-4) **Quantities (absolute)** – For each kept sample well:  
-   - pred_log10Q = (Cq − intercept) / slope; Quantity = 10^pred_log10Q.  
-5) **Normalisation to ref gene** – Per label, RefQty is the mean Quantity of the chosen ref gene; Norm_Qty = Quantity / RefQty.  
-6) **Exports** – `PerWell_Normalized` carries one row per Plate/Well/Gene/Label with slope/intercept/pred_log10Q/Quantity/RefQty/Norm_Qty plus your metadata.  
-
-### ΔΔCt option?
-Yes — choose **Quantification mode → ΔΔCt (relative)** in the sidebar, then select calibrator labels. The app shows FoldChange (= 2^-ΔΔCt) and provides a CSV download.
-
-## Development Notes
-- The Streamlit UI lives in `app.py`, while calculation helpers are in `qpcr_core.py`.
-- Dependencies are listed in `requirements.txt`; dev-only tooling (pytest) is in `requirements-dev.txt`.
-- Run unit tests with `./.venv/bin/python -m pytest`; Playwright E2E refreshes the screenshots in `screenshots/`.
+License: All Rights Reserved.

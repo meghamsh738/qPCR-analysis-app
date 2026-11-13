@@ -1,7 +1,7 @@
 {
-  "name": "easylab-qpcr-analysis",
-  "version": "0.1.0",
-  "description": "Easylab qPCR analysis desktop app",
+  "name": "easylab-next-qpcr-analysis",
+  "version": "0.3.0-dev.1",
+  "description": "EasyLab Next qPCR analysis \u2014 separate development version",
   "author": "Meghamsh Teja",
   "private": true,
   "main": "desktop/electron/main.cjs",
@@ -20,9 +20,9 @@
     "sharp": "^0.33.5"
   },
   "build": {
-    "appId": "com.meghamshteja.easylab.qpcranalysis",
-    "productName": "Easylab qPCR Analysis",
-    "copyright": "Copyright © 2026 Meghamsh Teja. All Rights Reserved.",
+    "appId": "com.meghamshteja.easylab.next.qpcranalysis",
+    "productName": "EasyLab Next qPCR Analysis",
+    "copyright": "Copyright \u00a9 2026 Meghamsh Teja. All Rights Reserved.",
     "directories": {
       "buildResources": "desktop/build",
       "output": "desktop/dist"
@@ -54,6 +54,42 @@
       {
         "from": "LICENSE",
         "to": "LICENSE"
+      },
+      {
+        "from": "qpcr_workflow.py",
+        "to": "qpcr_workflow.py"
+      },
+      {
+        "from": "qpcr_statistics.py",
+        "to": "qpcr_statistics.py"
+      },
+      {
+        "from": "qpcr_io.py",
+        "to": "qpcr_io.py"
+      },
+      {
+        "from": "qpcr_graphs.py",
+        "to": "qpcr_graphs.py"
+      },
+      {
+        "from": "qpcr_storage.py",
+        "to": "qpcr_storage.py"
+      },
+      {
+        "from": "qpcr_session.py",
+        "to": "qpcr_session.py"
+      },
+      {
+        "from": "qpcr_example.py",
+        "to": "qpcr_example.py"
+      },
+      {
+        "from": "run_next.py",
+        "to": "run_next.py"
+      },
+      {
+        "from": "qpcr_review_export.py",
+        "to": "qpcr_review_export.py"
       }
     ],
     "win": {
