@@ -1,6 +1,6 @@
 """Explicit experiment edits and dependent review invalidation."""
 from copy import deepcopy
-from qpcr_storage import fingerprint, new_run
+from qpcr_storage import DEFAULT_REFERENCE_SET, fingerprint, new_run, reference_sets
 
 STEPS = ['Import', 'Map samples', 'Review wells', 'Methods', 'Results', 'Graphs & statistics', 'Save & export']
 
@@ -51,3 +51,43 @@ def preserve_standard_decisions(generated, existing, preserve_concentrations=Tru
         key=tuple(row.get(k) for k in ['Plate','Gene','Label'])
         output.extend([dict(row,**{k:v for k,v in saved.items() if preserve_concentrations or k != 'Concentration'}) for saved in by_key.get(key,[])] or [row])
     return output
+
+
+def analyze_reference_sets(wells, standards, settings):
+    """Calculate each reference choice with the existing reviewed single-set engine."""
+    import pandas as pd
+    from qpcr_workflow import analyze
+
+    shared = {}
+    endpoints = {}
+    targets = settings.get('target_assays') or None
+    for reference in reference_sets(settings):
+        output = analyze(
+            wells, standards, reference['references'], settings['calibrators'],
+            allow_extrapolation=settings['allow_extrapolation'],
+            efficiency_confirmed=reference['efficiency_confirmed'],
+            threshold=settings['threshold'],
+            target_assays=targets,
+        )
+        for name, table in output.items():
+            if name in {'standard_results', 'ddcq_results', 'issues'}:
+                if targets and name == 'issues':
+                    relevant = targets + reference['references']
+                    table = table[table.Gene.isna() | table.Gene.eq('') | table.Gene.isin(relevant)]
+                annotated = table.assign(
+                    ReferenceSetId=reference['id'],
+                    ReferenceSet=reference['name'],
+                    ReferenceAssays=', '.join(reference['references']),
+                )
+                endpoints.setdefault(name, []).append(annotated)
+            else:
+                shared.setdefault(name, table)
+    for name, tables in endpoints.items():
+        shared[name] = pd.concat(tables, ignore_index=True) if len(tables) > 1 else tables[0]
+    return shared
+
+
+def rows_for_reference_set(table, identifier):
+    if 'ReferenceSetId' in table:
+        return table.loc[table.ReferenceSetId.eq(identifier)].copy()
+    return table.copy() if identifier == DEFAULT_REFERENCE_SET else table.iloc[:0].copy()

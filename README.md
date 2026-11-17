@@ -16,6 +16,8 @@ Open `http://127.0.0.1:18501`. The launcher refuses an occupied port. In the Nex
 
 Use the **Open practice experiment** button for fictional data, or import CSV/TSV/TXT/XLSX Results files. Explicitly confirm columns, identities, retained wells and methods. Imported rows and original files remain available in the experiment package.
 
+**Independent reference sets.** In Methods, select the same target assays and biological calibrators, then name each reference set. Put each reference gene in its own set to compare them separately; select multiple genes in a single set to combine them. Choose a set in Results and Graphs & statistics. The assay-by-assay workbook uses the chosen set; detailed exports include the set ID and name for each result. Phase-1 packages open under their original reference set and retain their saved results.
+
 ## Workflow
 
 1. **Import:** preview original rows and confirm columns. Native Results headers and separate sample-information tables are supported.

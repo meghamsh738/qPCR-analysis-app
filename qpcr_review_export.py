@@ -316,6 +316,9 @@ def cyc1_review_workbook(
         "comments": "Formula results are cached at export and recalculate in a spreadsheet application.",
     })
     workbook.set_custom_property("EasyLabWorkbookKind", "qpcr-review", "text")
+    reference_set_name = _text(settings.get("reference_set_name"))
+    if reference_set_name:
+        workbook.set_custom_property("EasyLabReferenceSet", reference_set_name[:255], "text")
     formats = {
         "base": workbook.add_format({"font_name": "Aptos", "font_size": 10, "font_color": "#203040", "valign": "vcenter"}),
         "header": workbook.add_format({"font_name": "Aptos", "font_size": 10, "bold": True, "font_color": "#FFFFFF", "bg_color": "#17365D", "border": 1, "border_color": "#17365D", "text_wrap": True, "valign": "vcenter"}),
@@ -804,6 +807,8 @@ def cyc1_review_workbook(
     # A single compact normalization table, linked by exact SampleId. It uses
     # only the Target/reference ratio endpoint, never the calibrator fold row.
     normalized = workbook.add_worksheet("normalised")
+    if reference_set_name:
+        normalized.set_header("&LReference set: {}".format(reference_set_name.replace("&", "&&")[:90]))
     normalized.set_default_row(18)
     normalized.freeze_panes(1, 0)
     normalized.set_landscape()

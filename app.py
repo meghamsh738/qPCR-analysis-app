@@ -3,14 +3,16 @@ from __future__ import annotations
 import copy
 import itertools
 import json
+import re
+from uuid import uuid4
 from pathlib import Path
 import pandas as pd
 import streamlit as st
 from qpcr_io import ALIASES, read_table, suggested_mapping, map_columns, records, source_record, excel_results
-from qpcr_storage import new_run, storage_paths, encode_package, decode_package, save_run, load_presets, save_preset
-from qpcr_session import STEPS, changed, fresh_run, analysis_key, graph_defaults, preserve_standard_decisions
+from qpcr_storage import new_run, storage_paths, encode_package, decode_package, save_run, load_presets, save_preset, reference_sets, validate_reference_sets, MAX_REFERENCE_SETS, DEFAULT_REFERENCE_SET
+from qpcr_session import STEPS, changed, fresh_run, analysis_key, graph_defaults, preserve_standard_decisions, analyze_reference_sets, rows_for_reference_set
 from qpcr_example import practice_data
-from qpcr_workflow import prepare_wells, summarise_samples, make_standard_map, fit_curves, analyze
+from qpcr_workflow import prepare_wells, summarise_samples, make_standard_map, fit_curves
 from qpcr_statistics import run_statistics
 from qpcr_graphs import result_figure, static_figure, curve_figure, PALETTE, analysis_report
 
@@ -66,6 +68,12 @@ def result_tables():
 def csv_download(label, data, filename, sep=','):
     st.download_button(label, data.to_csv(index=False,sep=sep), filename, 'text/csv' if sep==',' else 'text/tab-separated-values')
 
+def reference_file_tag(reference):
+    name = re.sub(r'[^a-z0-9]+', '-', reference['name'].casefold()).strip('-')
+    identifier = re.sub(r'[^a-zA-Z0-9]+', '', reference['id'])[:8]
+    return f'{name[:36] or "set"}-{identifier or "reference"}'
+
+
 def import_data(files):
     tables, sources = [], []
     names = [f[0] for f in files]
@@ -80,6 +88,8 @@ def import_data(files):
         sources.append(source_record(filename, data, details))
     raw = pd.concat(tables, ignore_index=True).fillna('')
     settings = copy.deepcopy(run['settings'])
+    settings.pop('reference_sets', None)
+    settings.pop('target_assays', None)
     settings.update(references=[],calibrators=[],allow_extrapolation=False,efficiency_confirmed=False)
     apply({'sources': sources, 'raw': records(raw), 'wells': [], 'standards': [], 'settings':settings, 'practice':False}, 0, approve=False)
 
@@ -304,23 +314,68 @@ elif stage == 3:
             st.warning('One or more fitted efficiencies fall outside your warning limits. Check dilution preparation and assay behavior before accepting the ΔΔCq assumptions.')
         if len(efficiencies)>1 and efficiencies.max()-efficiencies.min()>settings['efficiency_difference']:
             st.warning('Assay efficiencies differ by more than your warning threshold. The equal-efficiency assumption needs explicit scientific review; accepting it does not correct that difference.')
+    saved_sets = reference_sets(settings)
+    set_count = st.number_input(
+        'Number of reference sets', min_value=1, max_value=MAX_REFERENCE_SETS,
+        value=len(saved_sets), step=1, key=f'reference-count-{key}',
+        help='Choose the number of sets before editing. For separate 18S and CYC1 results, choose two sets with one gene in each.',
+    )
     with st.form(f'methods-{key}'):
         st.subheader('Assay-specific standard selection')
         st.caption('Edit quantities and include any suitable subset, including non-contiguous levels. Excluded standards need a reason.')
         edited = st.data_editor(standards,disabled=[c for c in standards if c not in ['Concentration','Include','Reason']],num_rows='fixed',hide_index=True,width='stretch')
         genes = sorted(wells.Gene.dropna().unique().tolist())
-        refs = st.multiselect('Reference genes',genes,default=[r for r in settings['references'] if r in genes])
         sample_ids = sorted(wells.loc[wells.Type.eq('Sample'),'SampleId'].dropna().unique().tolist())
         calibrators = st.multiselect('Calibrator biological samples',sample_ids,default=[r for r in settings['calibrators'] if r in sample_ids],help='Select every biological sample in the intended baseline group. Each sample receives equal weight.')
-        st.caption('Several reference genes are combined by mean Cq for ΔΔCq and geometric mean quantity for standard curves. Choose stable references for the tissues and conditions being compared.')
-        efficiency = st.checkbox('I accept the near-100%, similar-efficiency assumption for ΔΔCq in this experiment',value=settings['efficiency_confirmed'])
-        st.caption('This records your decision; it does not validate efficiency. Review assay efficiencies and calibrated ranges below. A mismatch needs scientific review.')
+        st.subheader('Reference sets')
+        target_assays = st.multiselect(
+            'Target assays', genes, default=[gene for gene in settings.get('target_assays', []) if gene in genes],
+            help='For multiple reference sets, select the same targets to compare across all sets. Leave blank in a single set to use all non-reference assays.',
+        )
+        st.caption('Each set gives its own results. Select several genes in one set only when you want a combined reference. The same calibrators are used for all sets.')
+        edited_sets = []
+        for i in range(set_count):
+            previous = saved_sets[i] if i < len(saved_sets) else {}
+            st.markdown(f'**Reference set {i + 1}**')
+            name = st.text_input('Set name' if i == 0 else f'Set {i + 1} name', value=previous.get('name', f'Reference set {i + 1}'))
+            refs = st.multiselect(
+                'Reference genes' if i == 0 else f'Reference genes for set {i + 1}',
+                genes, default=[r for r in previous.get('references', []) if r in genes],
+            )
+            efficiency = st.checkbox(
+                'I accept the near-100%, similar-efficiency assumption for ΔΔCq in this experiment'
+                if i == 0 else f'I accept the ΔΔCq efficiency assumption for set {i + 1}',
+                value=previous.get('efficiency_confirmed', False),
+            )
+            edited_sets.append({'id': previous.get('id'), 'name': name.strip(), 'references': refs, 'efficiency_confirmed': efficiency})
+        st.caption('Combining genes uses mean Cq for ΔΔCq and geometric mean quantity for standard curves. Check assay suitability for every set.')
         extrapolation = st.checkbox('Allow explicitly labelled provisional extrapolation outside the standard curve',value=settings['allow_extrapolation'])
         if st.form_submit_button('Confirm methods and standards',type='primary'):
             if not edited.empty and ((~edited.Include.astype(bool))&edited.Reason.fillna('').str.strip().eq('')).any():
                 st.error('Give a reason for every excluded standard level.')
             else:
-                settings.update(references=refs,calibrators=calibrators,efficiency_confirmed=efficiency,allow_extrapolation=extrapolation)
+                for reference in edited_sets:
+                    if reference['id'] is None:
+                        reference['id'] = str(uuid4())
+                    if set_count > 1 and not reference['references']:
+                        st.error('Select at least one gene for every reference set.')
+                        st.stop()
+                if set_count > 1 and not target_assays:
+                    st.error('Select the target assays to compare across reference sets.')
+                    st.stop()
+                if set(target_assays).intersection(gene for reference in edited_sets for gene in reference['references']):
+                    st.error('A target assay cannot also be selected as a reference for this comparison.')
+                    st.stop()
+                try:
+                    validate_reference_sets(edited_sets)
+                except ValueError as exc:
+                    st.error(str(exc))
+                    st.stop()
+                primary = edited_sets[0]
+                settings.update(
+                    reference_sets=edited_sets, target_assays=target_assays, references=primary['references'], calibrators=calibrators,
+                    efficiency_confirmed=primary['efficiency_confirmed'], allow_extrapolation=extrapolation,
+                )
                 apply({'settings':settings,'standards':records(edited)},3,4)
     if not standards.empty:
         curves, points = fit_curves(wells,standards)
@@ -354,27 +409,34 @@ elif stage == 4:
     if st.button('Calculate reviewed results',type='primary',disabled=not ready):
         try:
             s = run['settings']
-            calculated = analyze(frame('wells'),frame('standards'),s['references'],s['calibrators'],allow_extrapolation=s['allow_extrapolation'],efficiency_confirmed=s['efficiency_confirmed'],threshold=s['threshold'])
+            calculated = analyze_reference_sets(frame('wells'), frame('standards'), s)
             output = {k:records(v) if isinstance(v,pd.DataFrame) else v for k,v in calculated.items()}
             output['analysisKey'] = analysis_key(run)
-            apply({'results':output},4)
+            apply({'results':output, 'engineVersion':'next-qpcr-2'},4)
         except ValueError as exc:
             st.error(str(exc))
     tables = result_tables()
     if tables:
-        for title,name in [('Standard-curve results','standard_results'),('ΔΔCq results','ddcq_results')]:
+        available_sets = {item['id']: item for item in reference_sets(run['settings'])}
+        results_set = st.selectbox(
+            'Reference set to review', list(available_sets),
+            format_func=lambda identifier: available_sets[identifier]['name'],
+        )
+        reference_label = ', '.join(available_sets[results_set]['references']) or 'None selected'
+        st.caption(f'Reference assays: {reference_label}')
+        for title, name in [('Standard-curve results', 'standard_results'), ('ΔΔCq results', 'ddcq_results')]:
             st.subheader(title)
-            table = tables.get(name,pd.DataFrame())
-            st.dataframe(table,hide_index=True,width='stretch')
+            table = rows_for_reference_set(tables.get(name, pd.DataFrame()), results_set)
+            st.dataframe(table, hide_index=True, width='stretch')
             if not table.empty and 'Eligible' in table:
                 st.caption(f'{int(table.Eligible.sum())} eligible sample–assay endpoints of {len(table)}. Counts are method-specific.')
-        for name in ['issues','samples','quantities']:
+        for name in ['issues', 'samples', 'quantities']:
             if name in tables:
-                with st.expander(name.replace('_',' ').title()):
-                    st.dataframe(tables[name],hide_index=True,width='stretch')
+                with st.expander(name.title()):
+                    table = rows_for_reference_set(tables[name], results_set) if name == 'issues' else tables[name]
+                    st.dataframe(table, hide_index=True, width='stretch')
         if st.button('Continue to graphs and statistics'):
-            st.session_state.next_step = STEPS[5]
-            st.rerun()
+            apply({'graph':dict(run['graph'], referenceSetId=results_set)},5,5,approve=False)
 
 elif stage == 5:
     tables = result_tables()
@@ -383,9 +445,15 @@ elif stage == 5:
         st.stop()
     st.write('Each dot represents one biological sample. Changing the axes changes the view, not the values used for statistical testing.')
     spec = copy.deepcopy(run['graph'])
+    available_sets = {item['id']: item for item in reference_sets(run['settings'])}
+    set_ids = list(available_sets)
+    selected_set = st.selectbox(
+        'Reference set', set_ids, format_func=lambda identifier: available_sets[identifier]['name'],
+        index=set_ids.index(spec['referenceSetId']) if spec.get('referenceSetId') in set_ids else 0,
+    )
     methods = {'Standard curve':'standard_results','ΔΔCq':'ddcq_results'}
     method = st.selectbox('Analysis method',list(methods),index=list(methods).index(spec.get('method','Standard curve')))
-    values = tables.get(methods[method],pd.DataFrame())
+    values = rows_for_reference_set(tables.get(methods[method], pd.DataFrame()), selected_set)
     if values.empty or 'Gene' not in values:
         st.info('This method has no results. Revisit its requirements and reference choices.')
         st.stop()
@@ -401,6 +469,7 @@ elif stage == 5:
         endpoint = 'Expression'
     groups = sorted(values.Group.fillna('').unique().tolist())
     defaults = graph_defaults(spec,method,gene,endpoint,groups)
+    defaults['referenceSetId'] = selected_set
     if defaults != run['graph']:
         apply({'graph':defaults},5)
     spec = defaults
@@ -425,26 +494,28 @@ elif stage == 5:
             if set(order) != set(groups):
                 st.error('Include every group in the display order.')
             else:
-                apply({'graph':dict(method=method,gene=gene,endpoint=endpoint,title=title,ylabel=ylabel,scale=scale,error=error,point_size=point_size,paired=paired_lines,group_order=order,width=width,height=height,palette=palette)},5)
+                apply({'graph':dict(referenceSetId=selected_set,method=method,gene=gene,endpoint=endpoint,title=title,ylabel=ylabel,scale=scale,error=error,point_size=point_size,paired=paired_lines,group_order=order,width=width,height=height,palette=palette)},5)
     view = dict(spec,method=method,gene=gene,endpoint=endpoint)
+    set_label = available_sets[selected_set]['name']
+    set_tag = reference_file_tag(available_sets[selected_set])
     try:
         fig, points, omitted = result_figure(values,view)
         st.plotly_chart(fig,use_container_width=True)
-        st.caption(f'{len(points)} biological-sample dots. Excluded, missing or withheld endpoints do not contribute.')
+        st.caption(f'{set_label} · {len(points)} biological-sample dots. Excluded, missing or withheld endpoints do not contribute.')
         if omitted:
             st.warning(f'{omitted} non-positive values cannot appear on a logarithmic axis. They remain in the data and statistical tests.')
-        caption = f"{run['name']} · revision {run['revision']} · {method} · {gene} · {endpoint}"
+        caption = f"{run['name']} · revision {run['revision']} · {set_label} · {method} · {gene} · {endpoint}"
         cols = st.columns(4)
         for col,fmt in zip(cols,['png','svg','pdf']):
-            col.download_button(f'Download {fmt.upper()}',static_figure(values,view,fmt,caption),f'qpcr-{gene}.{fmt}')
+            col.download_button(f'Download {fmt.upper()}',static_figure(values,view,fmt,caption),f'qpcr-{set_tag}-{gene}.{fmt}')
         with cols[3]:
-            csv_download('Graph data',points,'qpcr-graph-data.csv')
+            csv_download('Graph data', points.assign(ReferenceSetId=selected_set, ReferenceSet=set_label), f'qpcr-graph-{set_tag}.csv')
     except ValueError as exc:
         st.error(str(exc))
     st.subheader('Basic statistical comparisons')
     st.caption('Choose one endpoint and the complete comparison family before testing. Log axes do not log-transform the analysis. Multigroup repeated-measures and two-factor designs should be exported to a suitable statistics application.')
     with st.form(f'stats-{key}'):
-        saved_stats = run['statistics'] if all(run['statistics'].get(k)==v for k,v in [('method',method),('gene',gene),('endpoint',endpoint)]) else {}
+        saved_stats = run['statistics'] if (run['statistics'].get('referenceSetId', DEFAULT_REFERENCE_SET) == selected_set and all(run['statistics'].get(k)==v for k,v in [('method',method),('gene',gene),('endpoint',endpoint)])) else {}
         designs = ['Welch · two independent groups','Paired · two explicitly matched groups','One-way ANOVA · independent groups, one factor']
         test = st.selectbox('Study design', designs,index={'welch':0,'paired':1,'anova':2}.get(saved_stats.get('test'),0))
         choices = list(itertools.combinations([g for g in groups if g],2))
@@ -461,12 +532,12 @@ elif stage == 5:
                     if code == 'paired' and len({group for pair in comparisons for group in pair}) > 2:
                         raise ValueError('Repeated-measures comparisons across more than two groups need a suitable external statistics application. Select one matched pair of groups here.')
                     omnibus, comparison_table = run_statistics(values,method=code,comparisons=comparisons,group_order=groups)
-                    apply({'statistics':{'method':method,'gene':gene,'endpoint':endpoint,'test':code,'comparisons':[list(p) for p in comparisons],'omnibus':omnibus,'table':records(comparison_table),'analysisKey':analysis_key(run)}},5)
+                    apply({'statistics':{'referenceSetId':selected_set,'method':method,'gene':gene,'endpoint':endpoint,'test':code,'comparisons':[list(p) for p in comparisons],'omnibus':omnibus,'table':records(comparison_table),'analysisKey':analysis_key(run)}},5)
                 except ValueError as exc:
                     st.error(str(exc))
     statistics = run['statistics']
-    if statistics and all(statistics.get(k)==v for k,v in [('method',method),('gene',gene),('endpoint',endpoint)]):
-        st.caption(f"{statistics['test'].title()} · {method} · {gene} · {endpoint}")
+    if statistics and statistics.get('referenceSetId', DEFAULT_REFERENCE_SET) == selected_set and all(statistics.get(k)==v for k,v in [('method',method),('gene',gene),('endpoint',endpoint)]):
+        st.caption(f"{statistics['test'].title()} · {set_label} · {method} · {gene} · {endpoint}")
         if statistics['test'] == 'anova':
             omnibus = statistics['omnibus']
             st.write(f"Overall ANOVA: F = {omnibus.get('Statistic')}, global P = {omnibus.get('PValue')}. Selected comparisons below use the pooled residual variance.")
@@ -478,7 +549,7 @@ elif stage == 5:
     with st.expander('Reference-gene review'):
         samples = tables.get('samples',pd.DataFrame())
         if not samples.empty:
-            references = samples[samples.Gene.isin(run['settings']['references'])]
+            references = samples[samples.Gene.isin(available_sets[selected_set]['references'])]
             st.dataframe(references,hide_index=True,width='stretch')
             st.caption('Compare retained mean Cq and disagreement across groups. Stable reference expression needs experimental support; these summaries alone do not establish suitability.')
             if not references.empty:
@@ -507,22 +578,54 @@ else:
     if tables:
         st.subheader('Reviewed results')
         if run['graph'].get('method'):
-            st.download_button('Download selected-results PDF report',analysis_report(run),'qpcr-report.pdf','application/pdf')
+            try:
+                report = analysis_report(run)
+            except ValueError as exc:
+                st.caption(str(exc))
+            else:
+                report_set = next(item for item in reference_sets(run['settings']) if item['id'] == run['graph'].get('referenceSetId', DEFAULT_REFERENCE_SET))
+                st.download_button('Download selected-results PDF report', report, f'qpcr-report-{reference_file_tag(report_set)}.pdf', 'application/pdf')
         table_format = st.radio('Sample table format',['CSV','TSV'],horizontal=True)
         detailed = st.checkbox('Include detailed wells, curves and review material',value=True)
         selected = {k:v for k,v in tables.items() if detailed or k in ['standard_results','ddcq_results']}
         if detailed:
             selected['Reviewed wells'] = frame('wells')
             selected['Standards'] = frame('standards')
-        selected['Statistics'] = pd.DataFrame(run['statistics'].get('table',[]))
+        saved_statistics = run['statistics']
+        statistics_table = pd.DataFrame(saved_statistics.get('table', []))
+        if not statistics_table.empty:
+            stat_set_id = saved_statistics.get('referenceSetId', DEFAULT_REFERENCE_SET)
+            statistics_table = statistics_table.assign(
+                ReferenceSetId=stat_set_id,
+                AnalysisMethod=saved_statistics.get('method'),
+                Gene=saved_statistics.get('gene'),
+                Endpoint=saved_statistics.get('endpoint'),
+            )
+        selected['Statistics'] = statistics_table
         workbook_style = st.radio('Excel layout',['Assay-by-assay manual review','Detailed result tables'],horizontal=True)
+        workbook_filename = 'qpcr-review-all-sets.xlsx'
         if workbook_style == 'Assay-by-assay manual review':
             from qpcr_review_export import cyc1_review_workbook
-            workbook = cyc1_review_workbook(frame('wells'),frame('standards'),tables,run['settings'])
+            available_sets = {item['id']: item for item in reference_sets(run['settings'])}
+            workbook_set = st.selectbox(
+                'Reference set for the review workbook', list(available_sets),
+                format_func=lambda identifier: available_sets[identifier]['name'],
+            )
+            workbook_settings = dict(
+                run['settings'], references=available_sets[workbook_set]['references'],
+                reference_set_name=available_sets[workbook_set]['name'],
+            )
+            workbook_tables = {
+                name: rows_for_reference_set(table, workbook_set)
+                if name in {'standard_results', 'ddcq_results', 'issues'} else table
+                for name, table in tables.items()
+            }
+            workbook = cyc1_review_workbook(frame('wells'),frame('standards'),workbook_tables,workbook_settings)
+            workbook_filename = f'qpcr-review-{reference_file_tag(available_sets[workbook_set])}.xlsx'
             st.caption('Editable assay sheets and a compact normalised sheet. Original source values remain below each review table. Excel edits do not change the saved app experiment. Open the experiment package to continue here. To bring spreadsheet edits back, export a reviewed flat well table and confirm its mappings again.')
         else:
             workbook = excel_results(selected,dict(run['settings'],statistics=run['statistics'],graph=run['graph'],revision=run['revision'],runId=run['runId']))
-        st.download_button('Download Excel review workbook',workbook,'qpcr-review.xlsx','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        st.download_button('Download Excel review workbook',workbook,workbook_filename,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         for name,table in selected.items():
             if not table.empty:
                 csv_download(f'Download {name.replace("_"," ")}',table,f'{name}.{table_format.lower()}',sep=',' if table_format=='CSV' else '\t')

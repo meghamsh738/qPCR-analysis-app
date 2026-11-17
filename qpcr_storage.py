@@ -62,6 +62,45 @@ def new_run():
     return {'engineVersion': 'next-qpcr-1', 'runId': str(uuid.uuid4()), 'name': 'Untitled experiment', 'revision': 0, 'createdAt': datetime.now(timezone.utc).isoformat(), 'sources': [], 'raw': [], 'wells': [], 'standards': [], 'settings': {'preset': 'Meghamsh — reviewed qPCR', 'top': 16384.0, 'factor': 4.0, 'threshold': 0.75, 'efficiency_min':90., 'efficiency_max':110., 'efficiency_difference':5., 'references': [], 'calibrators': [], 'allow_extrapolation': False, 'efficiency_confirmed': False}, 'approvals': {}, 'results': {}, 'graph': {}, 'statistics': {}}
 
 
+DEFAULT_REFERENCE_SET = 'original'
+MAX_REFERENCE_SETS = 8
+
+
+def reference_sets(settings):
+    """Read a phase-1 selection as a single set without changing saved results."""
+    if 'reference_sets' in settings:
+        return settings['reference_sets']
+    return [{
+        'id': DEFAULT_REFERENCE_SET,
+        'name': ', '.join(settings['references']) or 'Reference set 1',
+        'references': settings['references'],
+        'efficiency_confirmed': settings['efficiency_confirmed'],
+    }]
+
+
+def validate_reference_sets(sets):
+    if not isinstance(sets, list) or not 1 <= len(sets) <= MAX_REFERENCE_SETS:
+        raise ValueError('Keep between 1 and 8 reference sets.')
+    if any(not isinstance(item, dict) for item in sets):
+        raise ValueError('Invalid reference set.')
+    identifiers = set()
+    names = set()
+    for item in sets:
+        identifier = item.get('id')
+        name = item.get('name')
+        references = item.get('references')
+        if not isinstance(identifier, str) or not identifier or identifier in identifiers:
+            raise ValueError('Each reference set needs a unique identity.')
+        if not isinstance(name, str) or not name.strip() or name.strip().casefold() in names:
+            raise ValueError('Give each reference set a different name.')
+        if not isinstance(references, list) or any(not isinstance(gene, str) or not gene.strip() for gene in references):
+            raise ValueError('Invalid reference gene selection.')
+        if len(references) != len(set(references)) or type(item.get('efficiency_confirmed')) is not bool:
+            raise ValueError('Invalid reference gene or efficiency selection.')
+        identifiers.add(identifier)
+        names.add(name.strip().casefold())
+
+
 def encode_package(run):
     clean = json_safe(run)
     payload = {'format': FORMAT, 'schemaVersion': SCHEMA_VERSION, 'run': clean, 'sha256': fingerprint(clean)}
@@ -111,6 +150,19 @@ def decode_package(data):
             raise ValueError('Invalid numerical method setting.')
     if run['settings']['top'] <= 0 or run['settings']['factor'] <= 1 or run['settings']['threshold'] < 0:
         raise ValueError('Invalid standard series or warning threshold.')
+    settings = run['settings']
+    sets = settings.get('reference_sets')
+    targets = settings.get('target_assays', [])
+    if not isinstance(targets, list) or any(not isinstance(gene, str) or not gene.strip() for gene in targets):
+        raise ValueError('Invalid target assay selection.')
+    if len(targets) != len(set(targets)):
+        raise ValueError('Repeated target assay selection.')
+    if 'reference_sets' in settings:
+        validate_reference_sets(sets)
+        if len(sets) > 1 and (not targets or any(not item['references'] for item in sets)):
+            raise ValueError('Multiple reference sets need target assays and reference genes.')
+        if set(targets).intersection(gene for item in sets for gene in item['references']):
+            raise ValueError('A target assay cannot also be a reference in this comparison.')
     if any(k not in [str(i) for i in range(7)] for k in run['approvals']):
         raise ValueError('Invalid review step.')
     return run

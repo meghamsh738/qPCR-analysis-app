@@ -429,3 +429,62 @@ def test_curve_efficiency_overflow_is_an_invalid_curve_not_an_export_error():
     curves,_=fit_curves(wells,make_standard_map(wells,top=1000,factor=10))
     assert not curves.iloc[0].Eligible
     assert 'efficiency' in curves.iloc[0].Status.lower()
+
+
+def test_independent_reference_sets_keep_biological_samples_and_missing_results_separate():
+    from qpcr_session import analyze_reference_sets, rows_for_reference_set
+    from qpcr_storage import new_run
+
+    raw = _base_rows()
+    # Both samples share their instrument label, and have different well counts.
+    is_sample = raw.Type.eq("Sample")
+    raw.loc[is_sample, "Label"] = "Repeated label"
+    raw = raw.loc[~(raw.SampleId.eq("B") & raw.Gene.eq("RefB"))]
+    wells = prepare_wells(raw)
+    standards = make_standard_map(wells, top=16, factor=4)
+    settings = new_run()["settings"]
+    settings["calibrators"] = ["A"]
+    set_a = {"id": "a", "name": "18S only", "references": ["RefA"], "efficiency_confirmed": True}
+    set_b = {"id": "b", "name": "CYC1 only", "references": ["RefB"], "efficiency_confirmed": True}
+    settings["reference_sets"] = [set_a, set_b]
+    settings["target_assays"] = ["Target"]
+
+    output = analyze_reference_sets(wells, standards, settings)
+    target = output["ddcq_results"].loc[lambda rows: rows.Gene.eq("Target")]
+    assert sorted(target.SampleId) == ["A", "A", "B", "B"]
+    assert target.Label.unique().tolist() == ["Repeated label"]
+    first = rows_for_reference_set(target, "a")
+    assert list(first["Eligible"]) == [True, True]
+    np.testing.assert_allclose(first.Value, [1, 2])
+    second = rows_for_reference_set(target, "b")
+    assert list(second["Eligible"]) == [True, False]
+    assert "Missing reference" in second.loc[second.SampleId.eq("B"), "Status"].iloc[0]
+    assert second.ReferenceAssays.unique().tolist() == ["RefB"]
+    assert target.groupby(["ReferenceSetId", "Endpoint", "Gene", "SampleId"]).size().eq(1).all()
+    issues_a = rows_for_reference_set(output["issues"], "a")
+    assert not issues_a.Gene.eq("RefB").any()
+    assert set(output["standard_results"].Gene) == {"Target"}
+
+    set_b["references"] = ["RefA", "RefB"]
+    recalculated = analyze_reference_sets(wells, standards, settings)
+    first_again = rows_for_reference_set(recalculated["ddcq_results"], "a")
+    pd.testing.assert_frame_equal(
+        first.reset_index(drop=True),
+        first_again.loc[first_again.Gene.eq("Target")].reset_index(drop=True),
+    )
+
+
+def test_phase_one_results_open_as_original_set_without_recalculation():
+    from qpcr_session import rows_for_reference_set
+    from qpcr_storage import decode_package, encode_package, new_run, reference_sets
+
+    run = new_run()
+    run["settings"]["references"] = ["Original reference"]
+    run["results"]["ddcq_results"] = [{"SampleId": "S1", "Value": 2.5, "Eligible": True}]
+    package = encode_package(run)
+    reopened = decode_package(package)
+    assert reopened == run
+    assert reference_sets(reopened["settings"])[0]["references"] == ["Original reference"]
+    table = pd.DataFrame(reopened["results"]["ddcq_results"])
+    assert rows_for_reference_set(table, "original").Value.tolist() == [2.5]
+    assert rows_for_reference_set(table, "unknown").empty

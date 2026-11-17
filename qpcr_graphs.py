@@ -125,16 +125,25 @@ def analysis_report(run):
     import textwrap
     import matplotlib.pyplot as plt
     from matplotlib.backends.backend_pdf import PdfPages
-    from qpcr_session import analysis_key
+    from qpcr_session import analysis_key, rows_for_reference_set
+    from qpcr_storage import DEFAULT_REFERENCE_SET, reference_sets
     spec = run['graph']
     key = 'standard_results' if spec['method']=='Standard curve' else 'ddcq_results'
     values = pd.DataFrame(run['results'][key])
+    sets_by_id = {item['id']: item for item in reference_sets(run['settings'])}
+    identifier = spec.get('referenceSetId', DEFAULT_REFERENCE_SET)
+    reference = sets_by_id.get(identifier)
+    if reference is None or values.empty:
+        raise ValueError('Choose the reference set and endpoint in Graphs & statistics first.')
+    values = rows_for_reference_set(values, identifier)
     values = values[values.Gene.eq(spec['gene']) & values.Endpoint.eq(spec['endpoint'])]
+    if values.empty:
+        raise ValueError('Choose the reference set and endpoint in Graphs & statistics first.')
     output = io.BytesIO()
     with PdfPages(output) as pdf:
         page = plt.figure(figsize=(11.7,8.3))
         page.text(.06,.92,run['name'],fontsize=20,weight='bold')
-        lines = [f"EasyLab Next qPCR · revision {run['revision']}",f"Method: {spec['method']} · Assay: {spec['gene']} · Endpoint: {spec['endpoint']}",f"References: {', '.join(run['settings']['references']) or 'None selected'}",f"Calibrators: {', '.join(run['settings']['calibrators']) or 'None selected'}",f"Provisional extrapolation: {'permitted' if run['settings']['allow_extrapolation'] else 'withheld'}",f"ΔΔCq efficiency assumption accepted: {run['settings']['efficiency_confirmed']}",f"Eligible biological samples: {int(values.Eligible.sum())} of {len(values)}",f"Experiment ID: {run['runId']}",f"Analysis identifier: {analysis_key(run)[:20]}","Technical wells are averaged before biological summaries. The next page shows the selected graph. The sample table retains withheld endpoints and flags. Axis scaling does not change statistical values.","The reopenable experiment package contains original source copies, reviewed wells, standards and settings. Keep it with this report."]
+        lines = [f"EasyLab Next qPCR · revision {run['revision']}",f"Method: {spec['method']} · Assay: {spec['gene']} · Endpoint: {spec['endpoint']}",f"Reference set: {reference['name']} · {', '.join(reference['references']) or 'None selected'}",f"Calibrators: {', '.join(run['settings']['calibrators']) or 'None selected'}",f"Provisional extrapolation: {'permitted' if run['settings']['allow_extrapolation'] else 'withheld'}",f"ΔΔCq efficiency assumption accepted: {reference['efficiency_confirmed']}",f"Eligible biological samples: {int(values.Eligible.sum())} of {len(values)}",f"Experiment ID: {run['runId']}",f"Analysis identifier: {analysis_key(run)[:20]}","Technical wells are averaged before biological summaries. The next page shows the selected graph. The sample table retains withheld endpoints and flags. Axis scaling does not change statistical values.","The reopenable experiment package contains original source copies, reviewed wells, standards and settings. Keep it with this report."]
         wrapped='\n\n'.join(textwrap.fill(line,110) for line in lines)
         page.text(.06,.84,wrapped,fontsize=10,va='top',linespacing=1.4)
         pdf.savefig(page);plt.close(page)

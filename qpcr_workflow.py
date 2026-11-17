@@ -897,6 +897,7 @@ def analyze(
     allow_extrapolation: bool = False,
     efficiency_confirmed: bool = False,
     threshold: float = 0.75,
+    target_assays: Optional[Sequence[str]] = None,
 ) -> Dict[str, pd.DataFrame]:
     """Run reviewed standard-curve and ΔΔCq endpoints from prepared wells.
 
@@ -949,6 +950,7 @@ def analyze(
             _add_issue(issues, str(curve["Status"]), plate=curve.get("Plate"), gene=curve.get("Gene"))
     quantities = quantify(summary, curves, allow_extrapolation=allow_extrapolation)
     reference_set = set(references_list)
+    selected_targets = set(_as_names(target_assays)) if target_assays is not None else None
     quantity_rows: Dict[Tuple[str, str], pd.Series] = {}
     summary_rows: Dict[Tuple[str, str], pd.Series] = {}
     for _, row in quantities.iterrows():
@@ -963,11 +965,12 @@ def analyze(
     ddcq_results: List[Dict[str, Any]] = []
     target_genes = [
         str(gene) for gene in summary["Gene"].dropna().drop_duplicates().tolist()
-        if str(gene) not in reference_set
+        if str(gene) not in reference_set and (selected_targets is None or str(gene) in selected_targets)
     ]
+    target_set = set(target_genes)
     sample_ids = list(dict.fromkeys(str(value) for value in summary["SampleId"].dropna().tolist()))
     for sample_id in sample_ids:
-        sample_targets = [row for (sid, gene), row in quantity_rows.items() if sid == sample_id and gene not in reference_set]
+        sample_targets = [row for (sid, gene), row in quantity_rows.items() if sid == sample_id and gene in target_set]
         for target in sample_targets:
             target_gene = _identifier(target["Gene"]) or ""
             ref_rows = [quantity_rows.get((sample_id, reference)) for reference in references_list]
